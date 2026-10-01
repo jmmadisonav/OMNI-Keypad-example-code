@@ -1,0 +1,3899 @@
+{
+    ".kind": "obj",
+    "configuration": {
+        ".kind": "obj",
+        ".name": "Configuration Data",
+        ".class": "harman.common.configuration",
+        "device": {
+            ".kind": "obj",
+            ".name": "Device Data",
+            ".class": "harman.common.device",
+            "container": {
+                ".min": 0,
+                ".access": "rw",
+                ".type": "string",
+                ".kind": "param",
+                ".name": "Device Container",
+                ".default": ""
+            },
+            "protocolversion": {
+                ".kind": "param",
+                ".name": "Device Protocol Version",
+                ".class": "harman.common.version",
+                ".type": "string",
+                ".default": "1.8.0.0",
+                ".access": "ro",
+                ".min": 0
+            },
+            "manufacturer": {
+                ".min": 0,
+                ".kind": "param",
+                ".name": "Device Manufacturer",
+                ".type": "string",
+                ".default": "BSS",
+                ".access": "c"
+            },
+            "family": {
+                ".min": 0,
+                ".kind": "param",
+                ".name": "Device Family",
+                ".type": "string",
+                ".default": "Dynamic Keypad",
+                ".access": "c"
+            },
+            "model": {
+                ".name": "Device Model",
+                ".kind": "param",
+                ".type": "string",
+                ".default": "Dynamic Keypad-Series",
+                ".access": "ro"
+            },
+            "serialnumber": {
+                ".min": 0,
+                ".access": "ro",
+                ".type": "string",
+                ".kind": "param",
+                ".name": "Device Serial Number",
+                ".default": "00000000000",
+                ".metadata": {
+                    "setonce": true,
+                    "factorypersist": true
+                }
+            },
+            "classname": {
+                ".min": 0,
+                ".kind": "param",
+                ".name": "Device Class Name",
+                ".type": "string",
+                ".default": "keypad.controller.w8v",
+                ".access": "c"
+            },
+            "version": {
+                ".min": 0,
+                ".kind": "param",
+                ".name": "Device Version",
+                ".class": "harman.common.version",
+                ".type": "string",
+                ".default": "1.0.0.0",
+                ".access": "ro"
+            },
+            "devicestate": {
+                ".min": 0,
+                ".kind": "param",
+                ".name": "Device State",
+                ".class": "harman.common.devicestate",
+                ".type": "string",
+                ".default": "Running",
+                ".access": "ro"
+            },
+            "name": {
+                ".kind": "param",
+                ".name": "Device Name",
+                ".type": "string",
+                ".min": 0,
+                ".access": "rw",
+                ".default": "DynamicKeypad-00000000"
+            },
+            "descriptorlocation": {
+                ".kind": "param",
+                ".name": "Device Descriptor Location",
+                ".type": "string",
+                ".min": 0,
+                ".default": "descriptor/hornet.json",
+                ".access": "ro"
+            },
+            "guid": {
+                ".min": 0,
+                ".kind": "param",
+                ".name": "Device GUID",
+                ".type": "string",
+                ".default": "00000000-0000-0000-0000-000000000000",
+                ".access": "ro"
+            },
+            "location": {
+                ".access": "rw",
+                ".kind": "param",
+                ".name": "Device Location",
+                ".type": "string",
+                ".min": 0,
+                ".default": ""
+            },
+            "port": {
+                ".name": "HControl Port",
+                ".access": "ro",
+                ".type": "integer",
+                ".kind": "param",
+                ".default": 4197,
+                ".min": 0,
+                ".max": 65535
+            },
+            "fingerprint": {
+                ".name": "Device Fingerprint",
+                ".access": "ro",
+                ".kind": "param",
+                ".type": "string",
+                ".default": "01321100a482985e748b061e6e76c0f6"
+            },
+            "lastdeployedtimestamp": {
+                ".name": "Last Deployed Time",
+                ".access": "ro",
+                ".kind": "param",
+                ".type": "string",
+                ".default": "10/18/2024 5:42:06 PM"
+            },
+            "authenticate": {
+                ".name": "Authenticate Key Set",
+                ".access": "ro",
+                ".kind": "param",
+                ".type": "boolean",
+                ".default": false,
+                ".flags": [
+                    "hid"
+                ]
+            },
+            "locating": {
+                ".name": "Locating State",
+                ".access": "ro",
+                ".kind": "param",
+                ".type": "boolean",
+                ".default": false,
+                ".flags": [
+                    "hid"
+                ]
+            },
+            "mode": {
+                ".min": 0,
+                ".access": "ro",
+                ".type": "string",
+                ".kind": "param",
+                ".name": "Device Mode",
+                ".default": "device"
+            },
+            "exclusions": {
+                ".min": 0,
+                ".access": "ro",
+                ".type": "dstring",
+                ".kind": "param",
+                ".name": "Device Exclusions",
+                ".default": "mget"
+            },
+            "label": {
+                ".min": 0,
+                ".access": "rw",
+                ".kind": "param",
+                ".name": "Device Label",
+                ".type": "string",
+                ".default": "BSS Dynamic Keypad"
+            },
+            "lcdcrc": {
+                ".access": "ro",
+                ".kind": "param",
+                ".type": "string",
+                ".default": "00000000",
+                ".flags": [
+                    "hid"
+                ]
+            },
+            "heapinfo": {
+                ".name": "Heap Info",
+                ".kind": "obj",
+                "usage": {
+                    ".name": "Memory Usage",
+                    ".kind": "param",
+                    ".type": "float",
+                    ".class": "harman.common.percent",
+                    ".access": "ro",
+                    ".min": 0,
+                    ".max": 100,
+                    ".default": 0
+                },
+                "highwater": {
+                    ".name": "Memory High Water",
+                    ".kind": "param",
+                    ".type": "float",
+                    ".class": "harman.common.percent",
+                    ".access": "ro",
+                    ".min": 0,
+                    ".max": 100,
+                    ".default": 0
+                },
+                ".flags": [
+                    "hid"
+                ]
+            },
+            "dispalign": {
+                ".kind": "obj",
+                ".name": "dispalign",
+                "v_offset": {
+                    ".access": "rw",
+                    ".kind": "param",
+                    ".type": "integer",
+                    ".default": 0,
+                    ".min": -5,
+                    ".max": 5,
+                    ".flags": [
+                        "hid"
+                    ]
+                },
+                "h_offset": {
+                    ".access": "rw",
+                    ".kind": "param",
+                    ".type": "integer",
+                    ".default": 0,
+                    ".min": -5,
+                    ".max": 5,
+                    ".flags": [
+                        "hid"
+                    ]
+                }
+            },
+            "screenstate": {
+                ".name": "Screen State",
+                ".kind": "param",
+                ".type": "enum",
+                ".access": "ro",
+                ".enums": [
+                    "ON",
+                    "DIM",
+                    "OFF",
+                    "NONE"
+                ],
+                ".min": 0,
+                ".max": 3,
+                ".default": 0,
+                ".flags": [
+                    "hid"
+                ]
+            }
+        },
+        "files": {
+            ".kind": "array",
+            ".size": 2,
+            ".items": [
+                {
+                    ".name": "HControl File Transfer",
+                    ".kind": "obj",
+                    ".class": "submodule.file",
+                    ".scope": "config",
+                    "ext": {
+                        ".name": "File Extensions",
+                        ".kind": "param",
+                        ".type": "dstring",
+                        ".access": "c",
+                        ".default": "cpio"
+                    },
+                    "location": {
+                        ".name": "Transfer Location",
+                        ".kind": "param",
+                        ".type": "string",
+                        ".access": "c",
+                        ".default": "/project/"
+                    }
+                },
+                {
+                    ".name": "Firmware Update",
+                    ".kind": "obj",
+                    ".class": "submodule.file",
+                    ".scope": "config",
+                    "ext": {
+                        ".name": "File Extensions",
+                        ".kind": "param",
+                        ".type": "dstring",
+                        ".access": "c",
+                        ".default": "fwp"
+                    },
+                    "location": {
+                        ".name": "Transfer Location",
+                        ".kind": "param",
+                        ".type": "string",
+                        ".access": "c",
+                        ".default": "/auto_update/"
+                    }
+                }
+            ]
+        },
+        "commands": {
+            ".class": "harman.common.commands",
+            ".kind": "obj",
+            ".name": "commands",
+            "reset": {
+                ".class": "harman.common.reset",
+                ".kind": "command",
+                ".name": "reset",
+                ".arguments": {
+                    "level": {
+                        ".type": "enum",
+                        ".enums": [
+                            "System",
+                            "Factory"
+                        ],
+                        ".ordinal": 0,
+                        ".optional": true
+                    }
+                },
+                ".metadata": {
+                    "desc": "Command to reset platform configuration"
+                }
+            }
+        },
+        "network": {
+            ".kind": "obj",
+            ".class": "harman.common.network",
+            ".name": "Network",
+            "hostname": {
+                ".name": "Host Name",
+                ".kind": "param",
+                ".type": "string",
+                ".min": 0,
+                ".max": 256,
+                ".default": "",
+                ".access": "rw",
+                ".flags": [
+                    "uni"
+                ]
+            },
+            "interface": {
+                ".kind": "array",
+                ".size": 1,
+                ".class": "harman.common.interface",
+                ".name": "Interface",
+                ".prototype": {
+                    ".kind": "obj",
+                    "enable": {
+                        ".name": "Enable",
+                        ".kind": "param",
+                        ".class": "harman.common.enable",
+                        ".type": "boolean",
+                        ".default": true,
+                        ".access": "ro"
+                    },
+                    "name": {
+                        ".name": "Name",
+                        ".kind": "param",
+                        ".type": "string",
+                        ".min": 0,
+                        ".max": 256,
+                        ".default": "",
+                        ".access": "ro"
+                    },
+                    "mac": {
+                        ".name": "MAC Address",
+                        ".kind": "param",
+                        ".class": "harman.common.mac",
+                        ".type": "string",
+                        ".default": "",
+                        ".access": "ro",
+                        ".metadata": {
+                            "setonce": true,
+                            "factorypersist": true
+                        }
+                    },
+                    "dnsassign": {
+                        ".name": "DNS Assign",
+                        ".kind": "param",
+                        ".type": "boolean",
+                        ".access": "rw",
+                        ".default": false
+                    },
+                    "dnsserver": {
+                        ".kind": "array",
+                        ".size": 5,
+                        ".name": "DNS Server Address",
+                        ".prototype": {
+                            ".kind": "param",
+                            ".type": "string",
+                            ".access": "rw",
+                            ".default": ""
+                        }
+                    },
+                    "ipv4": {
+                        ".kind": "obj",
+                        ".class": "harman.common.ipv4",
+                        ".name": "IPV4",
+                        "enable": {
+                            ".name": "Enable",
+                            ".kind": "param",
+                            ".class": "harman.common.enable",
+                            ".type": "boolean",
+                            ".default": true,
+                            ".access": "ro",
+                            ".flags": [
+                                "uni"
+                            ]
+                        },
+                        "dhcp": {
+                            ".name": "Address Negotiation",
+                            ".kind": "param",
+                            ".type": "enum",
+                            ".min": 0,
+                            ".max": 1,
+                            ".default": 0,
+                            ".access": "rw",
+                            ".enums": [
+                                "DHCP",
+                                "Static"
+                            ]
+                        },
+                        "ipaddress": {
+                            ".name": "IP Address",
+                            ".kind": "param",
+                            ".class": "harman.common.ipv4",
+                            ".type": "string",
+                            ".default": "",
+                            ".access": "rw",
+                            ".flags": [
+                                "uni"
+                            ]
+                        },
+                        "subnetmask": {
+                            ".name": "Subnet Mask",
+                            ".kind": "param",
+                            ".class": "harman.common.ipv4",
+                            ".type": "string",
+                            ".access": "rw",
+                            ".default": ""
+                        },
+                        "gateway": {
+                            ".name": "Gateway",
+                            ".kind": "param",
+                            ".class": "harman.common.ipv4",
+                            ".type": "string",
+                            ".access": "rw",
+                            ".default": ""
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "version": {
+        ".name": "Descriptor Version",
+        ".kind": "param",
+        ".type": "string",
+        ".default": "1.0.0.0",
+        ".access": "ro",
+        ".class": "harman.common.version"
+    },
+    "settings": {
+        ".kind": "obj",
+        ".scope": "config",
+        ".name": "Settings",
+        "brightness": {
+            ".name": "LCD Brightness",
+            ".kind": "param",
+            ".type": "integer",
+            ".access": "rw",
+            ".min": 0,
+            ".max": 100,
+            ".default": 50
+        },
+        "screendimtimeout": {
+            ".name": "Display Dim",
+            ".kind": "param",
+            ".type": "enum",
+            ".access": "rw",
+            ".enums": [
+                "Never",
+                "15 seconds",
+                "30 seconds",
+                "1 minute",
+                "5 minutes",
+                "15 minutes",
+                "30 minutes",
+                "1 hour",
+                "2 hours",
+                "3 hours",
+                "4 hours",
+                "8 hours"
+            ],
+            ".min": 0,
+            ".max": 11,
+            ".default": 3
+        },
+        "screentimeout": {
+            ".name": "Screen Timeout",
+            ".kind": "param",
+            ".type": "enum",
+            ".access": "rw",
+            ".enums": [
+                "Never Sleep",
+                "15 seconds",
+                "30 seconds",
+                "1 minute",
+                "2 minutes",
+                "5 minutes",
+                "15 minutes",
+                "30 minutes"
+            ],
+            ".min": 0,
+            ".max": 7,
+            ".default": 5
+        },
+        "ledring_brightness": {
+            ".name": "LED Ring Brightness Control",
+            ".kind": "param",
+            ".type": "integer",
+            ".access": "rw",
+            ".min": 10,
+            ".max": 100,
+            ".default": 100
+        },
+        "hapticfeedback": {
+            ".name": "Haptic Feedback",
+            ".kind": "param",
+            ".type": "boolean",
+            ".access": "rw",
+            ".default": true
+        },
+        "currentpage": {
+            ".name": "Current Page",
+            ".kind": "param",
+            ".type": "enum",
+            ".access": "rw",
+            ".enums": [
+                "Page 1",
+                "Button",
+                "Laptops",
+                "Lights",
+                "Settings",
+                "Mics",
+                "Speaker"
+            ],
+            ".min": 0,
+            ".max": 6,
+            ".default": 0
+        }
+    },
+    "pages": {
+        ".name": "pages",
+        ".kind": "array",
+        ".size": 7,
+        ".items": [
+            {
+                ".kind": "obj",
+                "name": {
+                    ".name": "Page Name",
+                    ".kind": "param",
+                    ".type": "string",
+                    ".access": "ro",
+                    ".default": "Page 1"
+                },
+                "background": {
+                    ".name": "Background Color",
+                    ".kind": "param",
+                    ".type": "string",
+                    ".class": "harman.common.color",
+                    ".access": "rw",
+                    ".min": 0,
+                    ".max": 7,
+                    ".default": "#000000"
+                },
+                "panel_separator_color": {
+                    ".name": "Panel Separator Color",
+                    ".kind": "param",
+                    ".type": "string",
+                    ".class": "harman.common.color",
+                    ".access": "rw",
+                    ".min": 0,
+                    ".max": 7,
+                    ".default": "#0b0b0b"
+                },
+                "ledring": {
+                    ".kind": "param",
+                    ".type": "integer",
+                    ".access": "rw",
+                    ".min": 0,
+                    ".max": 200,
+                    ".default": 0
+                },
+                "ledmode": {
+                    ".kind": "param",
+                    ".type": "enum",
+                    ".access": "rw",
+                    ".enums": [
+                        "NORMAL",
+                        "MODE1",
+                        "MODE2",
+                        "MODE3",
+                        "DISCO"
+                    ],
+                    ".min": 0,
+                    ".max": 4,
+                    ".default": 0
+                },
+                "dial": {
+                    ".kind": "param",
+                    ".type": "integer",
+                    ".access": "rw",
+                    ".min": 0,
+                    ".max": 200,
+                    ".default": 0
+                },
+                "dial_button": {
+                    ".kind": "param",
+                    ".type": "enum",
+                    ".access": "ro",
+                    ".enums": [
+                        "RELEASE",
+                        "PUSH"
+                    ],
+                    ".min": 0,
+                    ".max": 1,
+                    ".default": 0,
+                    ".flags": [
+                        "hid"
+                    ]
+                },
+                "buttons": {
+                    ".name": "buttons",
+                    ".kind": "array",
+                    ".size": 8,
+                    ".items": [
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                ".kind": "obj",
+                "name": {
+                    ".name": "Page Name",
+                    ".kind": "param",
+                    ".type": "string",
+                    ".access": "ro",
+                    ".default": "Button"
+                },
+                "background": {
+                    ".name": "Background Color",
+                    ".kind": "param",
+                    ".type": "string",
+                    ".class": "harman.common.color",
+                    ".access": "rw",
+                    ".min": 0,
+                    ".max": 7,
+                    ".default": "#000000"
+                },
+                "panel_separator_color": {
+                    ".name": "Panel Separator Color",
+                    ".kind": "param",
+                    ".type": "string",
+                    ".class": "harman.common.color",
+                    ".access": "rw",
+                    ".min": 0,
+                    ".max": 7,
+                    ".default": "#0b0b0b"
+                },
+                "ledring": {
+                    ".kind": "param",
+                    ".type": "integer",
+                    ".access": "rw",
+                    ".min": 0,
+                    ".max": 200,
+                    ".default": 0
+                },
+                "ledmode": {
+                    ".kind": "param",
+                    ".type": "enum",
+                    ".access": "rw",
+                    ".enums": [
+                        "NORMAL",
+                        "MODE1",
+                        "MODE2",
+                        "MODE3",
+                        "DISCO"
+                    ],
+                    ".min": 0,
+                    ".max": 4,
+                    ".default": 0
+                },
+                "dial": {
+                    ".kind": "param",
+                    ".type": "integer",
+                    ".access": "rw",
+                    ".min": 0,
+                    ".max": 200,
+                    ".default": 0
+                },
+                "dial_button": {
+                    ".kind": "param",
+                    ".type": "enum",
+                    ".access": "ro",
+                    ".enums": [
+                        "RELEASE",
+                        "PUSH"
+                    ],
+                    ".min": 0,
+                    ".max": 1,
+                    ".default": 0,
+                    ".flags": [
+                        "hid"
+                    ]
+                },
+                "buttons": {
+                    ".name": "buttons",
+                    ".kind": "array",
+                    ".size": 8,
+                    ".items": [
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                ".kind": "obj",
+                "name": {
+                    ".name": "Page Name",
+                    ".kind": "param",
+                    ".type": "string",
+                    ".access": "ro",
+                    ".default": "Laptops"
+                },
+                "background": {
+                    ".name": "Background Color",
+                    ".kind": "param",
+                    ".type": "string",
+                    ".class": "harman.common.color",
+                    ".access": "rw",
+                    ".min": 0,
+                    ".max": 7,
+                    ".default": "#000000"
+                },
+                "panel_separator_color": {
+                    ".name": "Panel Separator Color",
+                    ".kind": "param",
+                    ".type": "string",
+                    ".class": "harman.common.color",
+                    ".access": "rw",
+                    ".min": 0,
+                    ".max": 7,
+                    ".default": "#0b0b0b"
+                },
+                "ledring": {
+                    ".kind": "param",
+                    ".type": "integer",
+                    ".access": "rw",
+                    ".min": 0,
+                    ".max": 200,
+                    ".default": 0
+                },
+                "ledmode": {
+                    ".kind": "param",
+                    ".type": "enum",
+                    ".access": "rw",
+                    ".enums": [
+                        "NORMAL",
+                        "MODE1",
+                        "MODE2",
+                        "MODE3",
+                        "DISCO"
+                    ],
+                    ".min": 0,
+                    ".max": 4,
+                    ".default": 0
+                },
+                "dial": {
+                    ".kind": "param",
+                    ".type": "integer",
+                    ".access": "rw",
+                    ".min": 0,
+                    ".max": 200,
+                    ".default": 0
+                },
+                "dial_button": {
+                    ".kind": "param",
+                    ".type": "enum",
+                    ".access": "ro",
+                    ".enums": [
+                        "RELEASE",
+                        "PUSH"
+                    ],
+                    ".min": 0,
+                    ".max": 1,
+                    ".default": 0,
+                    ".flags": [
+                        "hid"
+                    ]
+                },
+                "buttons": {
+                    ".name": "buttons",
+                    ".kind": "array",
+                    ".size": 8,
+                    ".items": [
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                ".kind": "obj",
+                "name": {
+                    ".name": "Page Name",
+                    ".kind": "param",
+                    ".type": "string",
+                    ".access": "ro",
+                    ".default": "Lights"
+                },
+                "background": {
+                    ".name": "Background Color",
+                    ".kind": "param",
+                    ".type": "string",
+                    ".class": "harman.common.color",
+                    ".access": "rw",
+                    ".min": 0,
+                    ".max": 7,
+                    ".default": "#000000"
+                },
+                "panel_separator_color": {
+                    ".name": "Panel Separator Color",
+                    ".kind": "param",
+                    ".type": "string",
+                    ".class": "harman.common.color",
+                    ".access": "rw",
+                    ".min": 0,
+                    ".max": 7,
+                    ".default": "#0b0b0b"
+                },
+                "ledring": {
+                    ".kind": "param",
+                    ".type": "integer",
+                    ".access": "rw",
+                    ".min": 0,
+                    ".max": 200,
+                    ".default": 0
+                },
+                "ledmode": {
+                    ".kind": "param",
+                    ".type": "enum",
+                    ".access": "rw",
+                    ".enums": [
+                        "NORMAL",
+                        "MODE1",
+                        "MODE2",
+                        "MODE3",
+                        "DISCO"
+                    ],
+                    ".min": 0,
+                    ".max": 4,
+                    ".default": 0
+                },
+                "dial": {
+                    ".kind": "param",
+                    ".type": "integer",
+                    ".access": "rw",
+                    ".min": 0,
+                    ".max": 200,
+                    ".default": 0
+                },
+                "dial_button": {
+                    ".kind": "param",
+                    ".type": "enum",
+                    ".access": "ro",
+                    ".enums": [
+                        "RELEASE",
+                        "PUSH"
+                    ],
+                    ".min": 0,
+                    ".max": 1,
+                    ".default": 0,
+                    ".flags": [
+                        "hid"
+                    ]
+                },
+                "buttons": {
+                    ".name": "buttons",
+                    ".kind": "array",
+                    ".size": 8,
+                    ".items": [
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                ".kind": "obj",
+                "name": {
+                    ".name": "Page Name",
+                    ".kind": "param",
+                    ".type": "string",
+                    ".access": "ro",
+                    ".default": "Settings"
+                },
+                "background": {
+                    ".name": "Background Color",
+                    ".kind": "param",
+                    ".type": "string",
+                    ".class": "harman.common.color",
+                    ".access": "rw",
+                    ".min": 0,
+                    ".max": 7,
+                    ".default": "#000000"
+                },
+                "panel_separator_color": {
+                    ".name": "Panel Separator Color",
+                    ".kind": "param",
+                    ".type": "string",
+                    ".class": "harman.common.color",
+                    ".access": "rw",
+                    ".min": 0,
+                    ".max": 7,
+                    ".default": "#0b0b0b"
+                },
+                "ledring": {
+                    ".kind": "param",
+                    ".type": "integer",
+                    ".access": "rw",
+                    ".min": 0,
+                    ".max": 200,
+                    ".default": 0
+                },
+                "ledmode": {
+                    ".kind": "param",
+                    ".type": "enum",
+                    ".access": "rw",
+                    ".enums": [
+                        "NORMAL",
+                        "MODE1",
+                        "MODE2",
+                        "MODE3",
+                        "DISCO"
+                    ],
+                    ".min": 0,
+                    ".max": 4,
+                    ".default": 0
+                },
+                "dial": {
+                    ".kind": "param",
+                    ".type": "integer",
+                    ".access": "rw",
+                    ".min": 0,
+                    ".max": 200,
+                    ".default": 0
+                },
+                "dial_button": {
+                    ".kind": "param",
+                    ".type": "enum",
+                    ".access": "ro",
+                    ".enums": [
+                        "RELEASE",
+                        "PUSH"
+                    ],
+                    ".min": 0,
+                    ".max": 1,
+                    ".default": 0,
+                    ".flags": [
+                        "hid"
+                    ]
+                },
+                "buttons": {
+                    ".name": "buttons",
+                    ".kind": "array",
+                    ".size": 8,
+                    ".items": [
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                ".kind": "obj",
+                "name": {
+                    ".name": "Page Name",
+                    ".kind": "param",
+                    ".type": "string",
+                    ".access": "ro",
+                    ".default": "Mics"
+                },
+                "background": {
+                    ".name": "Background Color",
+                    ".kind": "param",
+                    ".type": "string",
+                    ".class": "harman.common.color",
+                    ".access": "rw",
+                    ".min": 0,
+                    ".max": 7,
+                    ".default": "#000000"
+                },
+                "panel_separator_color": {
+                    ".name": "Panel Separator Color",
+                    ".kind": "param",
+                    ".type": "string",
+                    ".class": "harman.common.color",
+                    ".access": "rw",
+                    ".min": 0,
+                    ".max": 7,
+                    ".default": "#0b0b0b"
+                },
+                "ledring": {
+                    ".kind": "param",
+                    ".type": "integer",
+                    ".access": "rw",
+                    ".min": 0,
+                    ".max": 200,
+                    ".default": 0
+                },
+                "ledmode": {
+                    ".kind": "param",
+                    ".type": "enum",
+                    ".access": "rw",
+                    ".enums": [
+                        "NORMAL",
+                        "MODE1",
+                        "MODE2",
+                        "MODE3",
+                        "DISCO"
+                    ],
+                    ".min": 0,
+                    ".max": 4,
+                    ".default": 0
+                },
+                "dial": {
+                    ".kind": "param",
+                    ".type": "integer",
+                    ".access": "rw",
+                    ".min": 0,
+                    ".max": 200,
+                    ".default": 0
+                },
+                "dial_button": {
+                    ".kind": "param",
+                    ".type": "enum",
+                    ".access": "ro",
+                    ".enums": [
+                        "RELEASE",
+                        "PUSH"
+                    ],
+                    ".min": 0,
+                    ".max": 1,
+                    ".default": 0,
+                    ".flags": [
+                        "hid"
+                    ]
+                },
+                "buttons": {
+                    ".name": "buttons",
+                    ".kind": "array",
+                    ".size": 8,
+                    ".items": [
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                ".kind": "obj",
+                "name": {
+                    ".name": "Page Name",
+                    ".kind": "param",
+                    ".type": "string",
+                    ".access": "ro",
+                    ".default": "Speaker"
+                },
+                "background": {
+                    ".name": "Background Color",
+                    ".kind": "param",
+                    ".type": "string",
+                    ".class": "harman.common.color",
+                    ".access": "rw",
+                    ".min": 0,
+                    ".max": 7,
+                    ".default": "#000000"
+                },
+                "panel_separator_color": {
+                    ".name": "Panel Separator Color",
+                    ".kind": "param",
+                    ".type": "string",
+                    ".class": "harman.common.color",
+                    ".access": "rw",
+                    ".min": 0,
+                    ".max": 7,
+                    ".default": "#0b0b0b"
+                },
+                "ledring": {
+                    ".kind": "param",
+                    ".type": "integer",
+                    ".access": "rw",
+                    ".min": 0,
+                    ".max": 200,
+                    ".default": 0
+                },
+                "ledmode": {
+                    ".kind": "param",
+                    ".type": "enum",
+                    ".access": "rw",
+                    ".enums": [
+                        "NORMAL",
+                        "MODE1",
+                        "MODE2",
+                        "MODE3",
+                        "DISCO"
+                    ],
+                    ".min": 0,
+                    ".max": 4,
+                    ".default": 0
+                },
+                "dial": {
+                    ".kind": "param",
+                    ".type": "integer",
+                    ".access": "rw",
+                    ".min": 0,
+                    ".max": 200,
+                    ".default": 0
+                },
+                "dial_button": {
+                    ".kind": "param",
+                    ".type": "enum",
+                    ".access": "ro",
+                    ".enums": [
+                        "RELEASE",
+                        "PUSH"
+                    ],
+                    ".min": 0,
+                    ".max": 1,
+                    ".default": 0,
+                    ".flags": [
+                        "hid"
+                    ]
+                },
+                "buttons": {
+                    ".name": "buttons",
+                    ".kind": "array",
+                    ".size": 8,
+                    ".items": [
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        },
+                        {
+                            ".kind": "obj",
+                            "enabled": {
+                                ".kind": "param",
+                                ".type": "boolean",
+                                ".access": "rw",
+                                ".default": true
+                            },
+                            "type": {
+                                ".kind": "param",
+                                ".type": "string",
+                                ".access": "ro",
+                                ".default": "local",
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "output": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "rw",
+                                ".enums": [
+                                    "OFF",
+                                    "ON",
+                                    "Alt"
+                                ],
+                                ".min": 0,
+                                ".max": 2,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            },
+                            "action": {
+                                ".kind": "param",
+                                ".type": "enum",
+                                ".access": "ro",
+                                ".enums": [
+                                    "RELEASE",
+                                    "PUSH"
+                                ],
+                                ".min": 0,
+                                ".max": 1,
+                                ".default": 0,
+                                ".flags": [
+                                    "hid"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+}

@@ -1,0 +1,7 @@
+__pycache__/
+.venv/
+backup_*.cpio
+backup_*/
+descriptor_*.json
+docs/superpowers/
+docs/OMNI_keypad_load2.pcapng
