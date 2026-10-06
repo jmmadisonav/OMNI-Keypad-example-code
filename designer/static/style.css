@@ -26,6 +26,11 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 16px;
        background: var(--panel); border-bottom: 1px solid var(--line); }
 .bar h1 { font-size: 16px; margin: 0 16px 0 0; }
+.project-bar { display: flex; align-items: center; gap: 6px; padding-right: 12px;
+               margin-right: 4px; border-right: 1px solid var(--line); }
+.project-name { font-weight: 700; max-width: 220px; overflow: hidden; text-overflow: ellipsis;
+                white-space: nowrap; }
+.unsaved { color: var(--accent); }
 .host input { width: 220px; margin-left: 4px; }
 #status { margin: 0 0 0 8px; color: var(--muted); flex: 1 1 200px; }
 #status.error { color: var(--danger); }

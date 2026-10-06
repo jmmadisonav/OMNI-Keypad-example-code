@@ -1,4 +1,4 @@
-// Wires the page together: the connection bar, the keypad view, the editor,
+// Wires the page together: the project bar, the keypad view, the editor,
 // the library, and the deploy flow.
 
 import { getJson, sendJson, assetUrl } from "./api.js";
@@ -7,20 +7,22 @@ import { renderRecipe, toBase64, loadIcons } from "./render.js";
 import { createEditor } from "./editor.js";
 import {
   layoutFromConfig, addPage, renamePage, deletePage, setDestination, destinationOf,
-  destinationsTo, pageNumber, pageName, layoutRequest,
+  destinationsTo, pageNumber, pageName, layoutRequest, recipesFromSaved, recipesRequest,
 } from "./pages.js";
 
 const $ = (id) => document.getElementById(id);
+const projectUrl = (name) => `/api/projects/${encodeURIComponent(name)}`;
 
 const state = {
   catalog: null,
-  design: null,          // { fingerprint, config, images: {name: base64} }
-  host: "",
+  project: null,         // { name, config, images: {name: base64}, recipes, baseFingerprint }
+  projects: [],          // [{ name, saved }], newest first
   layout: null,          // Pages and page switching; see pages.js.
-  layoutChanges: 0,      // Page and page-switching changes not deployed yet.
+  layoutChanges: 0,      // Page and page-switching changes not saved yet.
   pageId: "",            // The page shown in the keypad view.
   selected: null,        // { pageId, button }
-  edits: new Map(),      // buttonKey(pageId, button) -> recipe
+  recipes: new Map(),    // buttonKey(pageId, button) -> saved layers
+  edits: new Map(),      // buttonKey(pageId, button) -> unsaved layers
   previews: new Map(),   // buttonKey(pageId, button) -> { off: dataURL, on: dataURL }
   busy: false,
 };
@@ -42,17 +44,17 @@ function storage(action, value) {
 
 // -- Keypad view ----------------------------------------------------------------------
 
-// The loaded page a page comes from; new pages use page 1's structure.
+// The saved page a page comes from; new pages use page 1's structure.
 function sourcePage(pageId) {
   const source = state.layout.pages.find((p) => p.id === pageId)?.source;
-  return state.design.config.pages[(source || 1) - 1];
+  return state.project.config.pages[(source || 1) - 1];
 }
 
 function designImage(pageId, button, key) {
   const source = state.layout.pages.find((p) => p.id === pageId)?.source;
   if (!source) return "";                                // New pages start empty.
-  const names = state.design.config.pages[source - 1].buttons[button - 1]?.[key] || [];
-  const data = names[0] && state.design.images[names[0]];
+  const names = state.project.config.pages[source - 1].buttons[button - 1]?.[key] || [];
+  const data = names[0] && state.project.images[names[0]];
   return data ? `data:image/png;base64,${data}` : "";
 }
 
@@ -73,10 +75,10 @@ function renderTabs() {
 function renderKeypad() {
   const keypad = $("keypad");
   keypad.innerHTML = "";
-  if (!state.design) return;
+  if (!state.project) return;
   const page = sourcePage(state.pageId);
   keypad.style.gridTemplateColumns = `repeat(${GRID.columns}, var(--cell))`;
-  keypad.style.background = state.design.config.display?.panel_separator_color || "#000";
+  keypad.style.background = state.project.config.display?.panel_separator_color || "#000";
   const showOn = $("show-on").checked;
   const count = Math.min(page.buttons.length, GRID.columns * GRID.rows);
   for (let button = 1; button <= count; button++) {
@@ -136,7 +138,7 @@ function changeLayout(next) {
   state.layoutChanges++;
   renderTabs();
   renderKeypad();
-  updateDeployButton();
+  updateButtons();
 }
 
 function onAddPage() {
@@ -181,7 +183,7 @@ function onDeletePage() {
     }
     state.pageId = next.pages[Math.max(0, pageNumber(state.layout, id) - 2)].id;
     changeLayout(next);
-    setStatus(`Deleted ${name}. Click Deploy to update the keypad.`);
+    setStatus(`Deleted ${name}. Click Save to keep the change.`);
   } catch (error) {
     setStatus(error.message, true);
   }
@@ -196,7 +198,7 @@ function onGoToChange() {
 function selectButton(pageId, button) {
   state.selected = { pageId, button };
   const key = buttonKey(pageId, button);
-  editor.setRecipe(state.edits.get(key) ??
+  editor.setRecipe(state.edits.get(key) ?? structuredClone(state.recipes.get(key)) ??
     recipeFromImages(designImage(pageId, button, "offImage"), designImage(pageId, button, "onImage")));
   $("save-recipe").disabled = false;
   renderKeypad();
@@ -206,7 +208,7 @@ async function onEdit(recipe) {
   if (!state.selected) return;
   const key = buttonKey(state.selected.pageId, state.selected.button);
   state.edits.set(key, recipe);
-  updateDeployButton();
+  updateButtons();
   const { off, on } = await renderRecipe(recipe, state.catalog);
   if (state.edits.get(key) !== recipe) return;            // A newer edit arrived.
   state.previews.set(key, { off: off.toDataURL("image/png"), on: on.toDataURL("image/png") });
@@ -217,40 +219,150 @@ function pendingChanges() {
   return state.edits.size + state.layoutChanges;
 }
 
-function updateDeployButton() {
-  const n = pendingChanges();
-  $("deploy").textContent = n ? `Deploy (${n} ${n === 1 ? "change" : "changes"})` : "Deploy";
-  $("deploy").disabled = !n || !state.design || state.busy;
+function updateButtons() {
+  const open = Boolean(state.project);
+  const unsaved = pendingChanges() > 0;
+  $("unsaved").hidden = !unsaved;
+  $("save").disabled = !open || !unsaved || state.busy;
+  $("save-as").disabled = !open || state.busy;
+  $("deploy").disabled = !open || state.busy;
+  for (const id of ["new", "projects", "load", "restore"]) $(id).disabled = state.busy;
 }
 
-// -- Loading and deploying -------------------------------------------------------------
+// -- Projects --------------------------------------------------------------------------
 
-async function loadDesign({ keepStatus = false } = {}) {
-  const host = $("host").value.trim();
-  if (!host) return setStatus("Enter the keypad's IP address first.", true);
-  if (pendingChanges() && !confirm("Loading discards the changes you haven't deployed. Continue?")) return;
-  setStatus(`Loading the design from ${host}…`);
-  try {
-    state.design = await sendJson("POST", "/api/design/load", { host });
-  } catch (error) {
-    return setStatus(error.message, true);
-  }
-  state.host = host;
-  storage("set", host);
-  state.layout = layoutFromConfig(state.design.config);
+function showProject(project) {
+  state.project = project;
+  state.layout = layoutFromConfig(project.config);
   state.layoutChanges = 0;
   state.pageId = state.layout.pages[0].id;
   state.selected = null;
+  state.recipes = new Map(Object.entries(recipesFromSaved(project.recipes)));
   state.edits.clear();
   state.previews.clear();
   editor.setRecipe(null);
   $("save-recipe").disabled = true;
+  $("project-name").textContent = project.name;
   renderTabs();
   renderKeypad();
-  updateDeployButton();
-  refreshBackups();
-  if (!keepStatus) setStatus(`Loaded the design from ${host}. Click a button to edit it.`);
+  updateButtons();
+  refreshProjects();
 }
+
+async function refreshProjects() {
+  try {
+    state.projects = await getJson("/api/projects");
+  } catch {
+    state.projects = [];
+  }
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Open…";
+  $("projects").replaceChildren(placeholder, ...state.projects.map((p) => {
+    const option = document.createElement("option");
+    option.value = option.textContent = p.name;
+    return option;
+  }));
+}
+
+function confirmDiscard() {
+  return !pendingChanges() || confirm("You have unsaved changes. Discard them?");
+}
+
+function freeName(base) {
+  const taken = new Set(state.projects.map((p) => p.name.toLowerCase()));
+  let name = base;
+  for (let n = 2; taken.has(name.toLowerCase()); n++) name = `${base} ${n}`;
+  return name;
+}
+
+async function newProject() {
+  if (!confirmDiscard()) return;
+  const name = prompt("Project name (letters, digits, spaces, dashes, underscores):", freeName("Untitled"));
+  if (name === null) return;
+  try {
+    showProject(await sendJson("POST", "/api/projects", { name: name.trim() }));
+    setStatus(`Created ${name.trim()}. Click a button to design it.`);
+  } catch (error) {
+    setStatus(error.message, true);
+  }
+}
+
+async function openProject() {
+  const name = $("projects").value;
+  $("projects").value = "";
+  if (!name || !confirmDiscard()) return;
+  try {
+    showProject(await getJson(projectUrl(name)));
+    setStatus(`Opened ${name}.`);
+  } catch (error) {
+    setStatus(error.message, true);
+  }
+}
+
+async function saveRequest() {
+  const buttons = [];
+  for (const [key, recipe] of state.edits) {
+    const [pageId, button] = key.split("-");
+    const page = pageNumber(state.layout, pageId);
+    if (!page) continue;                                // Its page was deleted.
+    const { off, on } = await renderRecipe(recipe, state.catalog);
+    buttons.push({ page, button: Number(button), name: recipe.name || "",
+                   off: toBase64(off), on: toBase64(on) });
+  }
+  const request = { buttons, recipes: recipesRequest(state.layout, new Map([...state.recipes, ...state.edits])) };
+  if (state.layoutChanges) request.layout = layoutRequest(state.layout);
+  return request;
+}
+
+// Save the unsaved changes to a project (the open one by default).
+// Returns false if saving failed.
+async function saveProject(name = state.project.name) {
+  setStatus(`Saving ${name}…`);
+  try {
+    showProject(await sendJson("PUT", projectUrl(name), await saveRequest()));
+    setStatus(`Saved ${name}.`);
+    return true;
+  } catch (error) {
+    setStatus(error.message, true);
+    return false;
+  }
+}
+
+async function saveAs() {
+  const input = prompt("Save as (letters, digits, spaces, dashes, underscores):", freeName(state.project.name));
+  if (input === null) return;
+  const to = input.trim();
+  try {
+    await sendJson("POST", `${projectUrl(state.project.name)}/copy`, { to });
+  } catch (error) {
+    return setStatus(error.message, true);
+  }
+  if (pendingChanges()) {
+    await saveProject(to);
+  } else {
+    showProject(await getJson(projectUrl(to)));
+    setStatus(`Saved as ${to}.`);
+  }
+}
+
+async function loadFromKeypad() {
+  const host = $("host").value.trim();
+  if (!host) return setStatus("Enter the keypad's IP address first.", true);
+  if (!confirmDiscard()) return;
+  setStatus(`Loading the design from ${host}…`);
+  try {
+    const project = await sendJson("POST", "/api/projects/from-keypad", { host });
+    storage("set", host);
+    showProject(project);
+    refreshBackups();
+    setStatus(`Loaded the design from ${host} as the project ${project.name}.`);
+  } catch (error) {
+    setStatus(error.message, true);
+  }
+}
+
+// -- Deploy and restore ------------------------------------------------------------------
 
 async function refreshBackups(select = "") {
   let names = [];
@@ -268,38 +380,28 @@ async function refreshBackups(select = "") {
 }
 
 async function deploy(force = false) {
+  const host = $("host").value.trim();
+  if (!host) return setStatus("Enter the keypad's IP address first.", true);
   state.busy = true;
-  updateDeployButton();
-  setStatus("Rendering the changed buttons…");
+  updateButtons();
   try {
-    const buttons = [];
-    for (const [key, recipe] of state.edits) {
-      const [pageId, button] = key.split("-");
-      const page = pageNumber(state.layout, pageId);
-      if (!page) continue;                                // Its page was deleted.
-      const { off, on } = await renderRecipe(recipe, state.catalog);
-      buttons.push({ page, button: Number(button), name: recipe.name || "",
-                     off: toBase64(off), on: toBase64(on) });
-    }
-    setStatus("Deploying. The keypad restarts, which takes about 20 seconds…");
-    const request = { host: state.host, fingerprint: state.design.fingerprint, buttons, force };
-    if (state.layoutChanges) request.layout = layoutRequest(state.layout);
-    const result = await sendJson("POST", "/api/design/deploy", request);
-    state.edits.clear();
-    state.layoutChanges = 0;
-    state.busy = false;
-    await loadDesign({ keepStatus: true });
+    if (pendingChanges() && !(await saveProject())) return;
+    setStatus(`Deploying ${state.project.name} to ${host}. A keypad with no design takes about ` +
+              "15 seconds to check, and the keypad then restarts, which takes about 20 seconds…");
+    const result = await sendJson("POST", `${projectUrl(state.project.name)}/deploy`, { host, force });
+    storage("set", host);
+    state.project.baseFingerprint = result.fingerprint;
     await refreshBackups(result.backup);
-    setStatus(`Deployed. The previous design is saved as ${result.backup}.`);
+    setStatus(result.backup ? `Deployed. The keypad's previous design is saved as ${result.backup}.`
+                            : "Deployed. The keypad had no design, so there was nothing to back up.");
   } catch (error) {
-    state.busy = false;
     if (error.body?.conflict) {
-      updateDeployButton();
-      if (confirm("The design on the keypad changed since you loaded it. Deploy over it anyway? " +
-                  "The current design is backed up first.")) {
+      state.busy = false;
+      updateButtons();
+      if (confirm(`The keypad at ${host} has a different design. Replace it? It's backed up first.`)) {
         return await deploy(true);     // Await, so this call's finally runs after the retry.
       }
-      return setStatus("Deploy cancelled. Click Load to get the keypad's current design.", true);
+      return setStatus("Deploy cancelled.", true);
     }
     if (error.body?.backup) {
       await refreshBackups(error.body.backup);
@@ -308,32 +410,27 @@ async function deploy(force = false) {
     setStatus(error.message, true);
   } finally {
     state.busy = false;
-    updateDeployButton();
+    updateButtons();
   }
 }
 
 async function restore() {
   const backup = $("backups").value;
-  const host = $("host").value.trim() || state.host;
+  const host = $("host").value.trim();
   if (!backup) return;
   if (!host) return setStatus("Enter the keypad's IP address first.", true);
   if (!confirm(`Restore ${backup} to the keypad at ${host}?`)) return;
   state.busy = true;
-  updateDeployButton();
+  updateButtons();
   setStatus(`Restoring ${backup}. The keypad restarts…`);
   try {
     await sendJson("POST", "/api/design/restore", { host, backup });
-    state.host = host;
-    state.edits.clear();
-    state.layoutChanges = 0;
-    state.busy = false;
-    await loadDesign({ keepStatus: true });
-    setStatus(`Restored ${backup}.`);
+    setStatus(`Restored ${backup} to ${host}. To edit it, click Load from keypad.`);
   } catch (error) {
     setStatus(error.message, true);
   } finally {
     state.busy = false;
-    updateDeployButton();
+    updateButtons();
   }
 }
 
@@ -348,7 +445,7 @@ async function findKeypads() {
       return option;
     }));
     if (found.length === 1) $("host").value = found[0].ip;
-    setStatus(found.length ? `Found ${found.length} keypad(s). Pick one, then click Load.`
+    setStatus(found.length ? `Found ${found.length} keypad(s). Pick one, then click Load from keypad or Deploy.`
                            : "Found no keypads. Enter the IP address instead.", !found.length);
   } catch (error) {
     setStatus(error.message, true);
@@ -448,14 +545,20 @@ async function start() {
     editor.setRecipe(null);
     renderReadyMade();
     await renderLibrary();
+    await refreshProjects();
+    showProject(state.projects.length ? await getJson(projectUrl(state.projects[0].name))
+                                      : await sendJson("POST", "/api/projects", { name: "Untitled" }));
   } catch (error) {
     return setStatus(`The designer couldn't start: ${error.message}`, true);
   }
   $("host").value = storage("get");
   refreshBackups();
+  $("new").addEventListener("click", newProject);
+  $("projects").addEventListener("change", openProject);
+  $("save").addEventListener("click", () => saveProject());
+  $("save-as").addEventListener("click", saveAs);
   $("find").addEventListener("click", findKeypads);
-  $("load").addEventListener("click", () => loadDesign());
-  $("host").addEventListener("keydown", (e) => { if (e.key === "Enter") loadDesign(); });
+  $("load").addEventListener("click", loadFromKeypad);
   $("deploy").addEventListener("click", () => deploy());
   $("restore").addEventListener("click", restore);
   $("show-on").addEventListener("change", renderKeypad);

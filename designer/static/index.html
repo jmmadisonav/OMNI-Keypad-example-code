@@ -11,16 +11,24 @@
 <body>
   <header class="bar">
     <h1>Button Designer</h1>
+    <div class="project-bar">
+      <span id="project-name" class="project-name">No project</span>
+      <span id="unsaved" class="unsaved" title="Unsaved changes" hidden>●</span>
+      <button id="new" type="button">New</button>
+      <select id="projects" aria-label="Open a project"><option value="">Open…</option></select>
+      <button id="save" type="button" disabled>Save</button>
+      <button id="save-as" type="button" disabled>Save as</button>
+    </div>
     <label class="host">Keypad
       <input id="host" list="keypads" placeholder="IP address, e.g. 172.17.0.46" spellcheck="false">
       <datalist id="keypads"></datalist>
     </label>
     <button id="find" type="button">Find</button>
-    <button id="load" type="button">Load</button>
+    <button id="load" type="button">Load from keypad</button>
     <button id="deploy" type="button" class="primary" disabled>Deploy</button>
     <select id="backups" aria-label="Backup to restore" hidden></select>
     <button id="restore" type="button" hidden>Restore backup</button>
-    <p id="status" role="status">Enter the keypad's IP address, then click Load.</p>
+    <p id="status" role="status">Design buttons, then click Save. To put the project on a keypad, enter its address and click Deploy.</p>
   </header>
   <main>
     <section class="pane keypad-pane" aria-label="Keypad">
