@@ -60,6 +60,14 @@ Replace `172.17.0.46` with your keypad's IP address. The script backs up the
 current design to `backup_<date>_<time>.cpio`, uploads the new design, and
 waits about 20 seconds for the keypad to restart with it.
 
+After a factory reset, the keypad has no design to back up and doesn't answer
+the download request, so the backup times out. To upload anyway, add
+`--no-backup`:
+
+```
+python 03_upload_design.py --host 172.17.0.46 upload --no-backup design/
+```
+
 To load it from AVX Architect instead, create a design with no OMNI
 assignments on any control, and deploy it to the keypad.
 
@@ -274,6 +282,12 @@ design.set_button_images(1, 3, off="Mute_OFF.png", on="Mute_ON.png")
 design.set_dial_range(1, 0, 100)
 data = design.to_cpio()               # new fingerprint and timestamp
 ```
+
+## Button designer
+
+To design button images in your browser and deploy them to the keypad, run
+`python designer/server.py`. For details, see
+[`designer/README.md`](designer/README.md).
 
 ## Protocol reference
 
