@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import copy
 import datetime
 import hashlib
 import importlib
@@ -18,7 +19,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from hcontrol import DEFAULT_PORT, HControlClient, HControlError
-from keypad_design import DESIGN_PATH, IMAGE_SIZE, Design, png_size
+from keypad_design import DESIGN_PATH, IMAGE_SIZE, MAX_PAGES, Design, png_size
 
 designs = importlib.import_module("03_upload_design")
 
@@ -78,6 +79,87 @@ class ButtonImages:
         return cls(page, button, str(item.get("name") or ""), images["off"], images["on"])
 
 
+@dataclass
+class Layout:
+    """The pages you want, in order, and where each button switches to.
+
+    Each page is (name, source): source is the number of the loaded page it
+    comes from, or None for a new, empty page. Destinations map
+    (page, button) in the new numbering to the name of a page.
+    """
+
+    pages: list[tuple[str, int | None]]
+    destinations: dict[tuple[int, int], str]
+
+    @classmethod
+    def from_json(cls, item: dict) -> Layout:
+        pages, destinations = item.get("pages"), item.get("destinations", [])
+        if not isinstance(pages, list) or not isinstance(destinations, list):
+            raise ValueError("the layout needs a list of pages and a list of destinations")
+        result = cls([], {})
+        for page in pages:
+            name, source = (page.get("name"), page.get("source")) if isinstance(page, dict) else (None, None)
+            if not isinstance(name, str) or not (source is None or type(source) is int):
+                raise ValueError("each page needs a \"name\" and a page number or null as \"source\"")
+            result.pages.append((name.strip(), source))
+        for entry in destinations:
+            try:
+                key = (int(entry["page"]), int(entry["button"]))
+                target = entry["destination"]
+            except (KeyError, TypeError, ValueError):
+                raise ValueError("each destination needs \"page\", \"button\", and "
+                                 "\"destination\"") from None
+            if not isinstance(target, str):
+                raise ValueError("a destination must be a page name")
+            result.destinations[key] = target
+        return result
+
+
+def apply_layout(design: Design, layout: Layout) -> None:
+    """Rebuild the design's pages and set every button's destination.
+
+    A new page copies page 1's structure (buttons, dial, and LED ring) with no
+    images and no destinations. Images that no page uses any more are dropped.
+    """
+    if not 1 <= len(layout.pages) <= MAX_PAGES:
+        raise ValueError(f"a design needs 1 to {MAX_PAGES} pages; this one has {len(layout.pages)}")
+    names = [name for name, _ in layout.pages]
+    if any(not name for name in names):
+        raise ValueError("every page needs a name")
+    if len(set(names)) != len(names):
+        raise ValueError("page names must be different from each other")
+    old = design.pages
+    pages = []
+    for name, source in layout.pages:
+        if source is None:
+            page = _blank_page(old[0])
+        elif 1 <= source <= len(old):
+            page = copy.deepcopy(old[source - 1])
+        else:
+            raise ValueError(f"there's no loaded page {source} to copy")
+        page["name"] = name
+        pages.append(page)
+    for (page, button), target in layout.destinations.items():
+        if not 1 <= page <= len(pages) or not 1 <= button <= len(pages[page - 1]["buttons"]):
+            raise ValueError(f"page {page} button {button} doesn't exist")
+        if target not in names:
+            raise ValueError(f"page {page} button {button} goes to {target!r}, "
+                             "which isn't a page")
+    design.config["pages"] = pages
+    for page_number, page in enumerate(pages, 1):
+        for button_number, button in enumerate(page["buttons"], 1):
+            button["destination"] = layout.destinations.get((page_number, button_number), "")
+    design.prune_images()
+
+
+def _blank_page(template: dict) -> dict:
+    page = copy.deepcopy(template)
+    for button in page.get("buttons", []):
+        button["offImage"], button["onImage"], button["altImage"] = [], [], []
+        button["destination"] = ""
+    return page
+
+
 def file_base(name: str, page: int, button: int) -> str:
     """Return the image file name stem for a recipe name, or p<page>b<button>."""
     return re.sub(r"[^A-Za-z0-9_-]", "_", name)[:64] if name else f"p{page}b{button}"
@@ -125,12 +207,14 @@ class KeypadOps:
         }
 
     def deploy(self, host: str, fingerprint: str, buttons: list[ButtonImages],
-               force: bool = False) -> dict:
+               force: bool = False, layout: Layout | None = None) -> dict:
         with self._exclusive():
             data = self._download(host)
             design = Design.from_cpio(data)
             if design.fingerprint != fingerprint and not force:
                 raise ConflictError("the design on the keypad changed since you loaded it")
+            if layout is not None:
+                apply_layout(design, layout)       # Image page numbers use the new layout.
             try:
                 apply_buttons(design, buttons)
             except IndexError as error:

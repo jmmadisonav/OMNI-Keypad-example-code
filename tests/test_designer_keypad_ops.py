@@ -6,7 +6,8 @@ from pathlib import Path
 from unittest import mock
 
 from designer import keypad_ops
-from designer.keypad_ops import (BusyError, ButtonImages, ConflictError, DeployFailed,
+from designer.keypad_ops import (BusyError, ButtonImages, ConflictError, DeployFailed, Layout,
+                                 apply_layout,
                                  DeployTimeout,
                                  KeypadOps, apply_buttons, file_base)
 from keypad_design import DESIGN_PATH, Design
@@ -87,6 +88,72 @@ class NamingTests(unittest.TestCase):
             apply_buttons(original(), [ButtonImages(1, 9, "", make_png(), make_png())])
 
 
+class LayoutTests(unittest.TestCase):
+    def layout(self, pages, destinations=()):
+        return Layout.from_json({
+            "pages": [{"name": n, "source": s} for n, s in pages],
+            "destinations": [{"page": p, "button": b, "destination": d} for p, b, d in destinations]})
+
+    def test_reorders_renames_and_adds_pages(self):
+        design = original()
+        page2_off = design.button(2, 1)["offImage"]
+        apply_layout(design, self.layout([("Second", 2), ("Main", 1), ("New", None)]))
+        self.assertEqual([p["name"] for p in design.pages], ["Second", "Main", "New"])
+        self.assertEqual(design.button(1, 1)["offImage"], page2_off)
+        new = design.page(3)
+        self.assertEqual(len(new["buttons"]), 8)
+        self.assertIn("dial", new)
+        for button in new["buttons"]:
+            self.assertEqual((button["offImage"], button["onImage"], button["destination"]),
+                             ([], [], ""))
+        self.assertEqual(design.missing_images(), [])
+
+    def test_sets_destinations_and_clears_the_rest(self):
+        design = original()       # Page 2 button 5 goes to "Page 1" in the fixture.
+        apply_layout(design, self.layout([("Page 1", 1), ("Page 2", 2), ("Page 3", None)],
+                                         [(1, 8, "Page 3"), (3, 1, "Page 1")]))
+        self.assertEqual(design.button(1, 8)["destination"], "Page 3")
+        self.assertEqual(design.button(3, 1)["destination"], "Page 1")
+        self.assertEqual(design.button(2, 5)["destination"], "")
+
+    def test_deleting_a_page_drops_its_images(self):
+        design = original()
+        only_on_page_2 = ({n for b in design.page(2)["buttons"] for n in b["offImage"]}
+                          - {n for b in design.page(1)["buttons"] for n in b["offImage"] + b["onImage"]})
+        apply_layout(design, self.layout([("Page 1", 1)]))
+        self.assertEqual(len(design.pages), 1)
+        self.assertTrue(only_on_page_2)
+        self.assertFalse(only_on_page_2 & set(design.images))
+
+    def test_rejects_bad_layouts(self):
+        bad = [
+            ([], []),
+            ([(f"P{n}", None) for n in range(10)], []),
+            ([("A", 1), ("A", 2)], []),
+            ([("  ", 1)], []),
+            ([("A", 3)], []),
+            ([("A", 1)], [(1, 1, "Nowhere")]),
+            ([("A", 1)], [(2, 1, "A")]),
+            ([("A", 1)], [(1, 9, "A")]),
+        ]
+        for pages, destinations in bad:
+            with self.subTest(pages=pages, destinations=destinations), self.assertRaises(ValueError):
+                apply_layout(original(), self.layout(pages, destinations))
+
+    def test_from_json_rejects_malformed_input(self):
+        for item in ({}, {"pages": "x"}, {"pages": [{"name": 3, "source": None}]},
+                     {"pages": [{"name": "A", "source": "1"}]},
+                     {"pages": [{"name": "A", "source": 1}], "destinations": [{"page": 1}]}):
+            with self.subTest(item=item), self.assertRaises(ValueError):
+                Layout.from_json(item)
+
+    def test_images_go_to_the_new_page_numbers(self):
+        design = original()
+        apply_layout(design, self.layout([("Page 1", 1), ("Page 2", 2), ("Page 3", None)]))
+        apply_buttons(design, [ButtonImages(3, 2, "Mute", make_png(seed=1), make_png(seed=2))])
+        self.assertEqual(design.button(3, 2)["offImage"], ["Mute_OFF.png"])
+
+
 class KeypadOpsTests(unittest.TestCase):
     def setUp(self):
         self.keypad = FakeKeypad().__enter__()
@@ -137,6 +204,18 @@ class KeypadOpsTests(unittest.TestCase):
             self.ops.deploy("127.0.0.1", "f" * 32, [
                 ButtonImages(1, 1, "", make_png(), make_png())])
         self.assertEqual(self.keypad.files[DESIGN_PATH], self.data)
+
+    def test_deploy_applies_layout_before_images(self):
+        layout = Layout.from_json({"pages": [{"name": "Page 1", "source": 1},
+                                             {"name": "Page 2", "source": 2},
+                                             {"name": "Lights", "source": None}],
+                                   "destinations": [{"page": 1, "button": 8, "destination": "Lights"}]})
+        self.ops.deploy("127.0.0.1", original().fingerprint,
+                        [ButtonImages(3, 1, "On", make_png(seed=1), make_png(seed=2))], layout=layout)
+        uploaded = Design.from_cpio(self.keypad.files[DESIGN_PATH])
+        self.assertEqual([p["name"] for p in uploaded.pages], ["Page 1", "Page 2", "Lights"])
+        self.assertEqual(uploaded.button(1, 8)["destination"], "Lights")
+        self.assertEqual(uploaded.button(3, 1)["offImage"], ["On_OFF.png"])
 
     def test_force_deploys_over_a_changed_design(self):
         self.ops.deploy("127.0.0.1", "f" * 32, [ButtonImages(1, 1, "", make_png(), make_png())],

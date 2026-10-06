@@ -29,7 +29,7 @@ if str(ROOT) not in sys.path:
 from hcontrol import HControlError, discover as hcontrol_discover  # noqa: E402
 from designer.assets import GraphicsZip  # noqa: E402
 from designer.keypad_ops import (BusyError, ButtonImages, ConflictError,  # noqa: E402
-                                 DeployFailed, DeployTimeout, KeypadOps)
+                                 DeployFailed, DeployTimeout, KeypadOps, Layout)
 from designer.library import Library  # noqa: E402
 
 MAX_BODY = 32 * 1024 * 1024
@@ -159,10 +159,12 @@ class _Handler(BaseHTTPRequestHandler):
             host = self._host_from(body)
             items = _field(body, "buttons", list)
             buttons = [ButtonImages.from_json(item) for item in items]
-            if not buttons:
-                raise ValueError("there are no changed buttons to deploy")
+            layout = (Layout.from_json(_field(body, "layout", dict))
+                      if body.get("layout") is not None else None)
+            if not buttons and layout is None:
+                raise ValueError("there are no changes to deploy")
             return self._json(self.ops.deploy(host, _field(body, "fingerprint", str), buttons,
-                                              force=bool(body.get("force"))))
+                                              force=bool(body.get("force")), layout=layout))
         if route == ("POST", "design", "restore"):
             body = self._body()
             return self._json(self.ops.restore(self._host_from(body), _field(body, "backup", str)))

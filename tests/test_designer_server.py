@@ -101,6 +101,28 @@ class ServerTests(unittest.TestCase):
         status, backups = self.json_request("GET", "/api/backups")
         self.assertIn(result["backup"], backups)
 
+    def test_deploy_with_only_a_layout(self):
+        fingerprint = Design.from_cpio(self.data).fingerprint
+        status, result = self.json_request("POST", "/api/design/deploy", {
+            "host": "127.0.0.1", "fingerprint": fingerprint, "buttons": [],
+            "layout": {"pages": [{"name": "Home", "source": 1}, {"name": "Extra", "source": None}],
+                       "destinations": [{"page": 1, "button": 8, "destination": "Extra"}]}})
+        self.assertEqual(status, 200, result)
+        uploaded = Design.from_cpio(self.keypad.files[DESIGN_PATH])
+        self.assertEqual([p["name"] for p in uploaded.pages], ["Home", "Extra"])
+        self.assertEqual(uploaded.button(1, 8)["destination"], "Extra")
+
+    def test_deploy_with_nothing_to_change_is_400(self):
+        status, body = self.json_request("POST", "/api/design/deploy", {
+            "host": "127.0.0.1", "fingerprint": "x", "buttons": []})
+        self.assertEqual(status, 400)
+
+    def test_deploy_with_bad_layout_is_400(self):
+        status, body = self.json_request("POST", "/api/design/deploy", {
+            "host": "127.0.0.1", "fingerprint": "x", "force": True, "buttons": [],
+            "layout": {"pages": [{"name": "A", "source": 1}, {"name": "A", "source": 2}]}})
+        self.assertEqual(status, 400, body)
+
     def test_deploy_conflict_is_409(self):
         status, body = self.json_request("POST", "/api/design/deploy", {
             "host": "127.0.0.1", "fingerprint": "f" * 32,
