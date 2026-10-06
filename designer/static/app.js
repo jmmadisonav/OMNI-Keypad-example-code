@@ -316,8 +316,13 @@ async function saveRequest() {
 }
 
 // Save the unsaved changes to a project (the open one by default).
-// Returns false if saving failed.
+// Returns false if saving failed. The page is locked while it saves, because
+// the saved project replaces the page's state when the save returns.
 async function saveProject(name = state.project.name) {
+  const wasBusy = state.busy;
+  state.busy = true;
+  document.querySelector("main").inert = true;
+  updateButtons();
   setStatus(`Saving ${name}…`);
   try {
     showProject(await sendJson("PUT", projectUrl(name), await saveRequest()));
@@ -326,6 +331,10 @@ async function saveProject(name = state.project.name) {
   } catch (error) {
     setStatus(error.message, true);
     return false;
+  } finally {
+    document.querySelector("main").inert = false;
+    state.busy = wasBusy;
+    updateButtons();
   }
 }
 
@@ -545,9 +554,6 @@ async function start() {
     editor.setRecipe(null);
     renderReadyMade();
     await renderLibrary();
-    await refreshProjects();
-    showProject(state.projects.length ? await getJson(projectUrl(state.projects[0].name))
-                                      : await sendJson("POST", "/api/projects", { name: "Untitled" }));
   } catch (error) {
     return setStatus(`The designer couldn't start: ${error.message}`, true);
   }
@@ -570,6 +576,18 @@ async function start() {
   window.addEventListener("beforeunload", (event) => {
     if (pendingChanges()) { event.preventDefault(); event.returnValue = ""; }
   });
+  updateButtons();
+  // Open the newest project, or create one the first time. A project that
+  // can't be opened mustn't stop you from opening or creating another.
+  await refreshProjects();
+  const newest = state.projects[0]?.name;
+  try {
+    showProject(newest ? await getJson(projectUrl(newest))
+                       : await sendJson("POST", "/api/projects", { name: "Untitled", unique: true }));
+  } catch (error) {
+    setStatus(`Couldn't open ${newest || "a new project"}: ${error.message}. ` +
+              "Choose another project in Open…, or click New.", true);
+  }
 }
 
 start();
