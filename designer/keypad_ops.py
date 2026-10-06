@@ -1,8 +1,9 @@
-"""Load the keypad's design and deploy new button images to it.
+"""Load designs from the keypad and deploy designs to it.
 
-Every deploy downloads the design again, checks that nobody changed it since
-you loaded it, saves it as a backup, and then uploads the new design with
-03_upload_design.upload() and wait_for_design().
+Every deploy downloads the keypad's design first and saves it as a backup.
+A keypad with no design doesn't answer that download, so the deploy goes
+ahead without a backup. Uploads use 03_upload_design.upload() and
+wait_for_design().
 """
 
 from __future__ import annotations
@@ -194,41 +195,41 @@ class KeypadOps:
         self.timeout = timeout
         self._busy = threading.Lock()
 
-    def load(self, host: str) -> dict:
+    def download(self, host: str) -> bytes:
+        """Download the keypad's design, and save a copy as loaded_<time>.cpio."""
         data = self._download(host)
         self._save(data, "loaded")
-        design = Design.from_cpio(data)
-        used = design.referenced_images()
-        return {
-            "fingerprint": design.fingerprint,
-            "config": design.config,
-            "images": {name: base64.b64encode(body).decode("ascii")
-                       for name, body in design.images.items() if name in used},
-        }
+        return data
 
-    def deploy(self, host: str, fingerprint: str, buttons: list[ButtonImages],
-               force: bool = False, layout: Layout | None = None) -> dict:
+    def deploy_project(self, host: str, design: Design, base_fingerprint: str,
+                       force: bool = False) -> dict:
+        """Upload a whole project design to the keypad.
+
+        Backs up the keypad's design first if it has one. A keypad with no
+        design, for example after a factory reset, doesn't answer the
+        download, so the upload goes ahead without a backup. If the keypad's
+        design isn't the one the project last matched, refuse unless force.
+        """
         with self._exclusive():
-            data = self._download(host)
-            design = Design.from_cpio(data)
-            if design.fingerprint != fingerprint and not force:
-                raise ConflictError("the design on the keypad changed since you loaded it")
-            if layout is not None:
-                apply_layout(design, layout)       # Image page numbers use the new layout.
             try:
-                apply_buttons(design, buttons)
-            except IndexError as error:
-                raise ValueError(str(error)) from None
-            backup = self._save(data, "backup")
+                current = self._download(host)    # ConnectionError if unreachable.
+            except TimeoutError:
+                current = None                    # No design to back up.
+            backup = ""
+            if current is not None:
+                if Design.from_cpio(current).fingerprint != base_fingerprint and not force:
+                    raise ConflictError(f"the keypad at {host} has a different design")
+                backup = self._save(current, "backup").name
+            data = design.to_cpio()               # New fingerprint.
             try:
-                self._upload(host, design.to_cpio(), design.fingerprint)   # New fingerprint.
+                self._upload(host, data, design.fingerprint)
             except TimeoutError as error:
                 raise DeployTimeout(f"the keypad didn't restart with the new design: {error}",
-                                    backup.name) from error
+                                    backup) from error
             except (OSError, HControlError) as error:
                 raise DeployFailed(f"the upload to the keypad at {host} failed: {error}",
-                                   backup.name) from error
-            return {"backup": backup.name, "fingerprint": design.fingerprint}
+                                   backup) from error
+            return {"fingerprint": design.fingerprint, "backup": backup}
 
     def restore(self, host: str, backup: str) -> dict:
         if not _BACKUP_NAME.fullmatch(backup):

@@ -166,67 +166,66 @@ class KeypadOpsTests(unittest.TestCase):
         self.wait = patcher.start()
         self.addCleanup(patcher.stop)
 
-    def test_load_returns_design_and_saves_a_copy(self):
-        result = self.ops.load("127.0.0.1")
-        self.assertEqual(result["fingerprint"], original().fingerprint)
-        self.assertEqual(len(result["config"]["pages"]), 2)
-        name = original().button(1, 1)["offImage"][0]
-        self.assertEqual(base64.b64decode(result["images"][name]), original().images[name])
+    def project(self) -> Design:
+        design = original()
+        apply_buttons(design, [ButtonImages(1, 3, "HDMI 1", make_png(seed=1), make_png(seed=2))])
+        return design
+
+    def test_download_returns_the_design_and_saves_a_copy(self):
+        self.assertEqual(self.ops.download("127.0.0.1"), self.data)
         copies = list(self.backups.glob("loaded_*.cpio"))
         self.assertEqual([c.read_bytes() for c in copies], [self.data])
 
-    def test_load_from_keypad_without_design_times_out_with_message(self):
+    def test_download_from_keypad_without_design_times_out_with_message(self):
         self.keypad.ignore.add("getfile")
         self.ops.timeout = 0.5
         with self.assertRaisesRegex(TimeoutError, "no design loaded"):
-            self.ops.load("127.0.0.1")
+            self.ops.download("127.0.0.1")
 
-    def test_load_from_unreachable_keypad_is_a_connection_error(self):
+    def test_download_from_unreachable_keypad_is_a_connection_error(self):
         # On Windows a closed port times out instead of refusing, so a
         # connect timeout must not be reported as "no design loaded".
         self.ops.port, self.ops.timeout = 1, 0.5
         with self.assertRaisesRegex(ConnectionError, "couldn't connect"):
-            self.ops.load("127.0.0.1")
+            self.ops.download("127.0.0.1")
 
-    def test_deploy_backs_up_uploads_and_returns_new_fingerprint(self):
-        fingerprint = original().fingerprint
-        result = self.ops.deploy("127.0.0.1", fingerprint, [
-            ButtonImages(1, 3, "HDMI 1", make_png(seed=1), make_png(seed=2))])
+    def test_deploy_project_backs_up_and_uploads(self):
+        result = self.ops.deploy_project("127.0.0.1", self.project(), original().fingerprint)
         uploaded = Design.from_cpio(self.keypad.files[DESIGN_PATH])
         self.assertEqual(uploaded.button(1, 3)["offImage"], ["HDMI_1_OFF.png"])
         self.assertEqual(result["fingerprint"], uploaded.fingerprint)
-        self.assertNotEqual(result["fingerprint"], fingerprint)
         self.assertEqual((self.backups / result["backup"]).read_bytes(), self.data)
         self.wait.assert_called_once_with("127.0.0.1", self.keypad.port, uploaded.fingerprint)
 
-    def test_deploy_refuses_when_fingerprint_changed(self):
-        with self.assertRaises(ConflictError):
-            self.ops.deploy("127.0.0.1", "f" * 32, [
-                ButtonImages(1, 1, "", make_png(), make_png())])
+    def test_deploy_project_to_a_keypad_without_design_skips_the_backup(self):
+        self.keypad.ignore.add("getfile")         # A factory-reset keypad never answers.
+        self.ops.timeout = 0.5
+        result = self.ops.deploy_project("127.0.0.1", self.project(), "")
+        self.assertEqual(result["backup"], "")
+        self.assertEqual(Design.from_cpio(self.keypad.files[DESIGN_PATH]).fingerprint,
+                         result["fingerprint"])
+        self.assertEqual(list(self.backups.glob("backup_*")), [])
+
+    def test_deploy_project_refuses_a_different_design_unless_forced(self):
+        with self.assertRaisesRegex(ConflictError, "different design"):
+            self.ops.deploy_project("127.0.0.1", self.project(), "f" * 32)
         self.assertEqual(self.keypad.files[DESIGN_PATH], self.data)
+        result = self.ops.deploy_project("127.0.0.1", self.project(), "f" * 32, force=True)
+        self.assertTrue((self.backups / result["backup"]).exists())
 
-    def test_deploy_applies_layout_before_images(self):
-        layout = Layout.from_json({"pages": [{"name": "Page 1", "source": 1},
-                                             {"name": "Page 2", "source": 2},
-                                             {"name": "Lights", "source": None}],
-                                   "destinations": [{"page": 1, "button": 8, "destination": "Lights"}]})
-        self.ops.deploy("127.0.0.1", original().fingerprint,
-                        [ButtonImages(3, 1, "On", make_png(seed=1), make_png(seed=2))], layout=layout)
-        uploaded = Design.from_cpio(self.keypad.files[DESIGN_PATH])
-        self.assertEqual([p["name"] for p in uploaded.pages], ["Page 1", "Page 2", "Lights"])
-        self.assertEqual(uploaded.button(1, 8)["destination"], "Lights")
-        self.assertEqual(uploaded.button(3, 1)["offImage"], ["On_OFF.png"])
+    def test_never_deployed_project_conflicts_with_an_existing_design(self):
+        with self.assertRaises(ConflictError):
+            self.ops.deploy_project("127.0.0.1", self.project(), "")
 
-    def test_force_deploys_over_a_changed_design(self):
-        self.ops.deploy("127.0.0.1", "f" * 32, [ButtonImages(1, 1, "", make_png(), make_png())],
-                        force=True)
-        self.assertNotEqual(self.keypad.files[DESIGN_PATH], self.data)
+    def test_deploy_project_to_unreachable_keypad_is_a_connection_error(self):
+        self.ops.port, self.ops.timeout = 1, 0.5
+        with self.assertRaises(ConnectionError):
+            self.ops.deploy_project("127.0.0.1", self.project(), "")
 
-    def test_deploy_timeout_reports_the_backup(self):
+    def test_deploy_project_timeout_reports_the_backup(self):
         self.wait.side_effect = TimeoutError("didn't restart")
         with self.assertRaises(DeployTimeout) as caught:
-            self.ops.deploy("127.0.0.1", original().fingerprint, [
-                ButtonImages(1, 1, "", make_png(), make_png())])
+            self.ops.deploy_project("127.0.0.1", self.project(), original().fingerprint)
         self.assertTrue((self.backups / caught.exception.backup).exists())
 
     def test_failed_upload_reports_the_backup(self):
@@ -234,8 +233,7 @@ class KeypadOpsTests(unittest.TestCase):
         with mock.patch.object(keypad_ops.designs, "upload",
                                side_effect=ConnectionResetError("reset by peer")):
             with self.assertRaises(DeployFailed) as caught:
-                self.ops.deploy("127.0.0.1", original().fingerprint, [
-                    ButtonImages(1, 1, "", make_png(), make_png())])
+                self.ops.deploy_project("127.0.0.1", self.project(), original().fingerprint)
         self.assertIsInstance(caught.exception, ConnectionError)
         self.assertIn("reset by peer", str(caught.exception))
         self.assertTrue((self.backups / caught.exception.backup).exists())
@@ -243,19 +241,17 @@ class KeypadOpsTests(unittest.TestCase):
     def test_second_deploy_while_first_runs_is_refused(self):
         started, release = threading.Event(), threading.Event()
         self.wait.side_effect = lambda *args: (started.set(), release.wait(5))
-        buttons = [ButtonImages(1, 1, "", make_png(), make_png())]
-        first = threading.Thread(target=self.ops.deploy,
-                                 args=("127.0.0.1", original().fingerprint, buttons))
+        first = threading.Thread(target=self.ops.deploy_project,
+                                 args=("127.0.0.1", self.project(), original().fingerprint))
         first.start()
         self.assertTrue(started.wait(5))
         with self.assertRaises(BusyError):
-            self.ops.deploy("127.0.0.1", original().fingerprint, buttons, force=True)
+            self.ops.deploy_project("127.0.0.1", self.project(), "", force=True)
         release.set()
         first.join(5)
 
     def test_restore_uploads_backup_without_backing_up(self):
-        result = self.ops.deploy("127.0.0.1", original().fingerprint, [
-            ButtonImages(1, 1, "", make_png(), make_png())])
+        result = self.ops.deploy_project("127.0.0.1", self.project(), original().fingerprint)
         before = set(self.backups.iterdir())
         self.ops.restore("127.0.0.1", result["backup"])
         self.assertEqual(self.keypad.files[DESIGN_PATH], self.data)
