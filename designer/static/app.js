@@ -60,7 +60,7 @@ function renderKeypad() {
   keypad.innerHTML = "";
   if (!state.design) return;
   const page = state.design.config.pages[state.page - 1];
-  keypad.style.gridTemplateColumns = `repeat(${GRID.columns}, 120px)`;
+  keypad.style.gridTemplateColumns = `repeat(${GRID.columns}, var(--cell))`;
   keypad.style.background = state.design.config.display?.panel_separator_color || "#000";
   const showOn = $("show-on").checked;
   const count = Math.min(page.buttons.length, GRID.columns * GRID.rows);

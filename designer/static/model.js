@@ -4,8 +4,9 @@
 export const SIZE = 188;
 export const CENTRE = SIZE / 2;
 export const MAX_IMPORT = SIZE * 2;      // Dropped images are scaled down to this.
-// Button layout on the keypad screen, numbered left to right, top to bottom.
-export const GRID = { columns: 2, rows: 4 };
+// Button layout on the OMNI-KP-8BV screen: 4 across, 2 down, numbered left
+// to right along the top row first.
+export const GRID = { columns: 4, rows: 2 };
 export const FONTS = ["Titillium Web", "Inter", "Roboto", "Oswald"];
 
 const OFF_GREY = "#9AA0A6";
