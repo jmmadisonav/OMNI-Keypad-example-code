@@ -2,7 +2,7 @@
 
 Every deploy downloads the design again, checks that nobody changed it since
 you loaded it, saves it as a backup, and then uploads the new design with
-03_upload_design.deploy().
+03_upload_design.upload() and wait_for_design().
 """
 
 from __future__ import annotations
@@ -122,7 +122,7 @@ class KeypadOps:
             apply_buttons(design, buttons)
             backup = self._save(data, "backup")
             try:
-                designs.deploy(host, self.port, design=design, backup_first=False)
+                self._upload(host, design.to_cpio(), design.fingerprint)   # New fingerprint.
             except TimeoutError as error:
                 raise DeployTimeout(f"the keypad didn't restart with the new design: {error}",
                                     backup.name) from error
@@ -136,8 +136,9 @@ class KeypadOps:
             raise FileNotFoundError(f"there's no backup called {backup}")
         with self._exclusive():
             data = path.read_bytes()
-            designs.deploy(host, self.port, data=data, backup_first=False)
-            return {"fingerprint": Design.from_cpio(data).fingerprint}
+            fingerprint = Design.from_cpio(data).fingerprint
+            self._upload(host, data, fingerprint)
+            return {"fingerprint": fingerprint}
 
     def backups(self) -> list[str]:
         names = [p.name for p in self.backup_dir.glob("*.cpio") if _BACKUP_NAME.fullmatch(p.name)]
@@ -157,6 +158,17 @@ class KeypadOps:
             raise TimeoutError(
                 f"the keypad at {host} didn't send its design. It might have no design "
                 "loaded, for example after a factory reset.") from None
+
+    def _upload(self, host: str, data: bytes, fingerprint: str) -> None:
+        """Upload a packed design and wait until the keypad runs it.
+
+        This skips 03_upload_design.deploy() because that always downloads a
+        backup first, which fails on a keypad with no design. The callers
+        keep their own backups.
+        """
+        with HControlClient(host, self.port, timeout=self.timeout) as kp:
+            designs.upload(kp, data)
+        designs.wait_for_design(host, self.port, fingerprint)
 
     def _save(self, data: bytes, prefix: str) -> Path:
         stamp = f"{datetime.datetime.now():%Y%m%d_%H%M%S}"
