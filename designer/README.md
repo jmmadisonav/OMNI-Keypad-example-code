@@ -32,26 +32,36 @@ port, add `--port 8050`. To stop it, press Ctrl+C.
 
 ## Design and deploy buttons
 
-1. Enter the keypad's IP address, or click **Find** to discover it, and click
-   **Load**. The designer saves a copy of the current design in
-   `designer/backups/`.
-1. Click a button on the keypad view. The editor shows its current images.
+1. The designer opens your most recent project, or a new project called
+   "Untitled" the first time. To start another, click **New**. To work on a
+   keypad's current design, enter its IP address, or click **Find**, and click
+   **Load from keypad**. That saves the design as a new project named after
+   the keypad, for example `172-17-0-55 2026-10-06`.
+1. Click a button on the keypad view. The editor shows its layers, or its
+   current images if it wasn't designed in the designer.
 1. Add layers with **Shape**, **Icon**, **Text**, and **Image**. To move a
    layer, drag it on either canvas or change **X** and **Y**. To check the ON
    images on every button, select **Show ON state**.
-1. Repeat for other buttons and pages. A dot marks each changed button.
-1. Click **Deploy**. The keypad restarts with the new design in about 20
-   seconds.
+1. Repeat for other buttons and pages. A dot marks each changed button, and a
+   dot next to the project name means there are unsaved changes.
+1. Click **Save**. You don't need a keypad for any of these steps.
+1. To put the project on a keypad, enter its IP address and click **Deploy**.
+   The designer saves first if needed. The keypad restarts with the project
+   in about 20 seconds.
 
 Every deploy saves the design that was running as
-`designer/backups/backup_<date>_<time>.cpio`, and every **Load** saves a copy
-as `loaded_<date>_<time>.cpio`. If a deploy fails, the designer selects the
-backup it made. To put a design back, choose it in the list next to
+`designer/backups/backup_<date>_<time>.cpio`, and every **Load from keypad**
+saves a copy as `loaded_<date>_<time>.cpio`. If a deploy fails, the designer
+selects the backup it made. To put a design back, choose it in the list next to
 **Restore backup**, and click **Restore backup**. Restoring works even when
 the keypad has no design loaded.
 
-If someone deployed to the keypad after you clicked **Load**, the designer
-asks before it replaces their design.
+A keypad with no design, for example after a factory reset, doesn't need a
+backup: **Deploy** checks for a design for about 15 seconds, then uploads the
+project anyway.
+
+If the keypad has a different design from the one this project last loaded
+from or deployed to, the designer asks before it replaces it.
 
 ## Add pages and switch between them
 
@@ -69,12 +79,29 @@ To make a button switch pages, select the button, and then choose a page in
 **Go to page**. The keypad switches pages by itself, without any app running.
 A badge such as **→ Lights** marks each button that switches pages.
 
-Page changes count toward **Deploy**, and go to the keypad with your image
-changes.
+Page changes are saved with the project, and go to the keypad when you
+deploy it.
 
 **Note:** HControl paths use page numbers, such as `/page3/button1/action`.
 Adding a page only adds new numbers. Deleting a page moves the pages after it
 up one number, so update any app that uses their paths.
+
+## Projects
+
+Each project is a folder in `designer/projects/`:
+
+| File | Contains |
+|---|---|
+| `keypad.json` | The design, in the same format as the repo's `design/` folder |
+| `images/` | The button images the design uses |
+| `designer.json` | Each button's layers, and which keypad design the project last matched |
+
+To open a project, choose it in **Open…**. To keep a copy under another name,
+click **Save as**. To delete a project, delete its folder.
+
+Because a project folder is a complete design, you can also deploy it from
+the command line, for example
+`python 03_upload_design.py upload designer/projects/Lobby`.
 
 ## Reuse designs with the library
 
@@ -98,10 +125,10 @@ To run the JavaScript tests, you need Node.js 18 or later. Run
 
 To check the designer against a keypad, do the following:
 
-1. Load the design, and check that the keypad view matches the keypad's
+1. Load the design with **Load from keypad**, and check that the keypad view matches the keypad's
    screen: the same images in the same positions, on the same page.
 1. Edit button 1 with a shape, an icon, and text, and button 2 with an image.
 1. Deploy, and check both buttons on the keypad in both states. To switch a
    button to ON, run `python 01_buttons_dial_feedback.py` and press it.
-1. Click **Load** again, and check that the designer shows the deployed images.
+1. Click **Load from keypad** again, and check that the designer shows the deployed images.
 1. Restore the backup, and check that the keypad shows the original design.
