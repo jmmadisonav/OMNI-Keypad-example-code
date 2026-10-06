@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Render Check</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body style="background:#222;color:#eee;font-family:sans-serif;padding:16px">
+  <p>Each pair shows OFF then ON. The status line reports PNG sizes.</p>
+  <div id="out"></div>
+  <p id="status">Rendering…</p>
+  <script type="module">
+    import { getJson } from "/static/api.js";
+    import { renderRecipe, toBase64 } from "/static/render.js";
+    import { newRecipe, addLayer, defaultLayer } from "/static/model.js";
+    const catalog = await getJson("/api/assets");
+    let recipe = newRecipe("check");
+    for (const type of ["shape", "icon", "text"]) recipe = addLayer(recipe, defaultLayer(type, catalog));
+    recipe.layers[1].icon = "monitor";
+    recipe.layers[1].y = 80;
+    recipe.layers[2].lines = ["HDMI 1"];
+    recipe.layers[2].y = 150;
+    const { off, on } = await renderRecipe(recipe, catalog);
+    document.getElementById("out").append(off, on);
+    const sizes = [off, on].map((c) => {
+      const png = atob(toBase64(c));
+      const w = (png.charCodeAt(16) << 24) | (png.charCodeAt(17) << 16) | (png.charCodeAt(18) << 8) | png.charCodeAt(19);
+      const h = (png.charCodeAt(20) << 24) | (png.charCodeAt(21) << 16) | (png.charCodeAt(22) << 8) | png.charCodeAt(23);
+      return `${w}x${h}`;
+    });
+    document.getElementById("status").textContent = `PNG sizes: ${sizes.join(", ")}`;
+  </script>
+</body>
+</html>
