@@ -17,7 +17,7 @@ import threading
 from dataclasses import dataclass
 from pathlib import Path
 
-from hcontrol import DEFAULT_PORT, HControlClient
+from hcontrol import DEFAULT_PORT, HControlClient, HControlError
 from keypad_design import DESIGN_PATH, IMAGE_SIZE, Design, png_size
 
 designs = importlib.import_module("03_upload_design")
@@ -34,6 +34,14 @@ class BusyError(Exception):
 
 
 class DeployTimeout(TimeoutError):
+    def __init__(self, message: str, backup: str):
+        super().__init__(message)
+        self.backup = backup
+
+
+class DeployFailed(ConnectionError):
+    """The upload failed partway, so the keypad might have no design."""
+
     def __init__(self, message: str, backup: str):
         super().__init__(message)
         self.backup = backup
@@ -133,6 +141,9 @@ class KeypadOps:
             except TimeoutError as error:
                 raise DeployTimeout(f"the keypad didn't restart with the new design: {error}",
                                     backup.name) from error
+            except (OSError, HControlError) as error:
+                raise DeployFailed(f"the upload to the keypad at {host} failed: {error}",
+                                   backup.name) from error
             return {"backup": backup.name, "fingerprint": design.fingerprint}
 
     def restore(self, host: str, backup: str) -> dict:

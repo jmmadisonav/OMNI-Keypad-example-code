@@ -29,7 +29,7 @@ if str(ROOT) not in sys.path:
 from hcontrol import HControlError, discover as hcontrol_discover  # noqa: E402
 from designer.assets import GraphicsZip  # noqa: E402
 from designer.keypad_ops import (BusyError, ButtonImages, ConflictError,  # noqa: E402
-                                 DeployTimeout, KeypadOps)
+                                 DeployFailed, DeployTimeout, KeypadOps)
 from designer.library import Library  # noqa: E402
 
 MAX_BODY = 32 * 1024 * 1024
@@ -85,6 +85,8 @@ class _Handler(BaseHTTPRequestHandler):
     def _handle(self, method: str) -> None:
         path = urllib.parse.urlsplit(self.path).path
         try:
+            # Read the body first, so an early refusal doesn't reset the connection.
+            self._raw = self._read_body() if method in ("POST", "PUT", "DELETE") else b""
             self._check_origin(method)
             self._route(method, path)
         except HttpError as error:
@@ -95,6 +97,8 @@ class _Handler(BaseHTTPRequestHandler):
             self._json({"error": str(error), "busy": True}, 409)
         except DeployTimeout as error:
             self._json({"error": str(error), "backup": error.backup}, 504)
+        except DeployFailed as error:
+            self._json({"error": str(error), "backup": error.backup}, 502)
         except TimeoutError as error:
             self._json({"error": str(error)}, 504)
         except FileNotFoundError as error:
@@ -182,12 +186,22 @@ class _Handler(BaseHTTPRequestHandler):
 
     # -- Requests and responses ---------------------------------------------------------
 
-    def _body(self) -> dict:
-        length = int(self.headers.get("Content-Length") or 0)
-        if length > MAX_BODY:
-            raise HttpError(413, "the request is too large")
+    def _read_body(self) -> bytes:
         try:
-            body = json.loads(self.rfile.read(length) or b"{}")
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            length = -1
+        if length < 0:
+            self.close_connection = True
+            raise HttpError(400, "the request has an invalid Content-Length")
+        if length > MAX_BODY:
+            self.close_connection = True          # Don't read it; drop the connection.
+            raise HttpError(413, "the request is too large")
+        return self.rfile.read(length)
+
+    def _body(self) -> dict:
+        try:
+            body = json.loads(self._raw or b"{}")
         except json.JSONDecodeError as error:
             raise HttpError(400, f"the request isn't valid JSON: {error}") from None
         if not isinstance(body, dict):

@@ -16,7 +16,6 @@ const state = {
   selected: null,        // { page, button }
   edits: new Map(),      // buttonKey -> recipe
   previews: new Map(),   // buttonKey -> { off: dataURL, on: dataURL }
-  lastBackup: "",
   busy: false,
 };
 
@@ -137,13 +136,28 @@ async function loadDesign({ keepStatus = false } = {}) {
   renderTabs();
   renderKeypad();
   updateDeployButton();
+  refreshBackups();
   if (!keepStatus) setStatus(`Loaded the design from ${host}. Click a button to edit it.`);
+}
+
+async function refreshBackups(select = "") {
+  let names = [];
+  try {
+    names = await getJson("/api/backups");
+  } catch { /* Leave the picker empty; the status line shows other errors. */ }
+  const list = $("backups");
+  list.replaceChildren(...names.map((name) => {
+    const option = document.createElement("option");
+    option.value = option.textContent = name;
+    return option;
+  }));
+  if (select) list.value = select;
+  list.hidden = $("restore").hidden = !names.length;
 }
 
 async function deploy(force = false) {
   state.busy = true;
   updateDeployButton();
-  $("restore").hidden = true;
   setStatus("Rendering the changed buttons…");
   try {
     const buttons = [];
@@ -155,10 +169,10 @@ async function deploy(force = false) {
     setStatus("Deploying. The keypad restarts, which takes about 20 seconds…");
     const result = await sendJson("POST", "/api/design/deploy",
       { host: state.host, fingerprint: state.design.fingerprint, buttons, force });
-    state.lastBackup = result.backup;
     state.edits.clear();
     state.busy = false;
     await loadDesign({ keepStatus: true });
+    await refreshBackups(result.backup);
     setStatus(`Deployed. The previous design is saved as ${result.backup}.`);
   } catch (error) {
     state.busy = false;
@@ -171,8 +185,8 @@ async function deploy(force = false) {
       return setStatus("Deploy cancelled. Click Load to get the keypad's current design.", true);
     }
     if (error.body?.backup) {
-      state.lastBackup = error.body.backup;
-      $("restore").hidden = false;
+      await refreshBackups(error.body.backup);
+      return setStatus(`${error.message}. To put back the previous design, click Restore backup.`, true);
     }
     setStatus(error.message, true);
   } finally {
@@ -182,17 +196,21 @@ async function deploy(force = false) {
 }
 
 async function restore() {
-  if (!state.lastBackup || !confirm(`Restore ${state.lastBackup} to the keypad?`)) return;
+  const backup = $("backups").value;
+  const host = $("host").value.trim() || state.host;
+  if (!backup) return;
+  if (!host) return setStatus("Enter the keypad's IP address first.", true);
+  if (!confirm(`Restore ${backup} to the keypad at ${host}?`)) return;
   state.busy = true;
   updateDeployButton();
-  setStatus(`Restoring ${state.lastBackup}. The keypad restarts…`);
+  setStatus(`Restoring ${backup}. The keypad restarts…`);
   try {
-    await sendJson("POST", "/api/design/restore", { host: state.host, backup: state.lastBackup });
-    $("restore").hidden = true;
+    await sendJson("POST", "/api/design/restore", { host, backup });
+    state.host = host;
     state.edits.clear();
     state.busy = false;
     await loadDesign({ keepStatus: true });
-    setStatus(`Restored ${state.lastBackup}.`);
+    setStatus(`Restored ${backup}.`);
   } catch (error) {
     setStatus(error.message, true);
   } finally {
@@ -205,7 +223,12 @@ async function findKeypads() {
   setStatus("Looking for keypads…");
   try {
     const found = await getJson("/api/keypads");
-    $("keypads").innerHTML = found.map((d) => `<option value="${d.ip}">${d.name} (${d.model} ${d.version})</option>`).join("");
+    $("keypads").replaceChildren(...found.map((d) => {
+      const option = document.createElement("option");    // Names come from the network.
+      option.value = d.ip;
+      option.textContent = `${d.name} (${d.model} ${d.version})`;
+      return option;
+    }));
     if (found.length === 1) $("host").value = found[0].ip;
     setStatus(found.length ? `Found ${found.length} keypad(s). Pick one, then click Load.`
                            : "Found no keypads. Enter the IP address instead.", !found.length);
@@ -311,6 +334,7 @@ async function start() {
     return setStatus(`The designer couldn't start: ${error.message}`, true);
   }
   $("host").value = storage("get");
+  refreshBackups();
   $("find").addEventListener("click", findKeypads);
   $("load").addEventListener("click", () => loadDesign());
   $("host").addEventListener("keydown", (e) => { if (e.key === "Enter") loadDesign(); });

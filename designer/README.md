@@ -44,9 +44,11 @@ port, add `--port 8050`. To stop it, press Ctrl+C.
    seconds.
 
 Every deploy saves the design that was running as
-`designer/backups/backup_<date>_<time>.cpio`. If the keypad doesn't come back
-with the new design, click **Restore backup**. To restore an older backup, run
-`python 03_upload_design.py restore designer/backups/<file>.cpio`.
+`designer/backups/backup_<date>_<time>.cpio`, and every **Load** saves a copy
+as `loaded_<date>_<time>.cpio`. If a deploy fails, the designer selects the
+backup it made. To put a design back, choose it in the list next to
+**Restore backup**, and click **Restore backup**. Restoring works even when
+the keypad has no design loaded.
 
 If someone deployed to the keypad after you clicked **Load**, the designer
 asks before it replaces their design.

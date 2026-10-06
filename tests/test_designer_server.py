@@ -127,6 +127,16 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(status, 504)
         self.assertTrue(body["backup"].startswith("backup_"))
 
+    def test_failed_upload_is_502_with_backup(self):
+        fingerprint = Design.from_cpio(self.data).fingerprint
+        with mock.patch.object(keypad_ops.designs, "upload", side_effect=ConnectionResetError("reset")):
+            status, body = self.json_request("POST", "/api/design/deploy", {
+                "host": "127.0.0.1", "fingerprint": fingerprint,
+                "buttons": [{"page": 1, "button": 1, "name": "",
+                             "off": b64(make_png()), "on": b64(make_png())}]})
+        self.assertEqual(status, 502)
+        self.assertTrue(body["backup"].startswith("backup_"))
+
     def test_unreachable_keypad_is_502(self):
         self.ops.port = 1
         status, body = self.json_request("POST", "/api/design/load", {"host": "127.0.0.1"})
@@ -167,6 +177,16 @@ class ServerTests(unittest.TestCase):
         with caught.exception:
             self.assertEqual(caught.exception.code, 415)
         self.assertEqual(list(self.ops.backup_dir.glob("loaded_*")), [])
+
+    def test_refused_write_with_large_body_still_gets_a_reply(self):
+        # The server must read the body before it answers, or Windows resets
+        # the connection and the client never sees the 415.
+        req = urllib.request.Request(self.base + "/api/design/deploy", method="POST",
+                                     data=b"x" * 2_000_000, headers={"Content-Type": "text/plain"})
+        with self.assertRaises(urllib.error.HTTPError) as caught:
+            urllib.request.urlopen(req, timeout=10)
+        with caught.exception:
+            self.assertEqual(caught.exception.code, 415)
 
     def test_requests_for_another_host_name_are_refused(self):
         # DNS rebinding: a page on evil.example resolves to 127.0.0.1.

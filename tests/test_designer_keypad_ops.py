@@ -6,7 +6,8 @@ from pathlib import Path
 from unittest import mock
 
 from designer import keypad_ops
-from designer.keypad_ops import (BusyError, ButtonImages, ConflictError, DeployTimeout,
+from designer.keypad_ops import (BusyError, ButtonImages, ConflictError, DeployFailed,
+                                 DeployTimeout,
                                  KeypadOps, apply_buttons, file_base)
 from keypad_design import DESIGN_PATH, Design
 from tests.fake_keypad import FakeKeypad
@@ -147,6 +148,17 @@ class KeypadOpsTests(unittest.TestCase):
         with self.assertRaises(DeployTimeout) as caught:
             self.ops.deploy("127.0.0.1", original().fingerprint, [
                 ButtonImages(1, 1, "", make_png(), make_png())])
+        self.assertTrue((self.backups / caught.exception.backup).exists())
+
+    def test_failed_upload_reports_the_backup(self):
+        # A connection reset mid-upload can leave the keypad without a design.
+        with mock.patch.object(keypad_ops.designs, "upload",
+                               side_effect=ConnectionResetError("reset by peer")):
+            with self.assertRaises(DeployFailed) as caught:
+                self.ops.deploy("127.0.0.1", original().fingerprint, [
+                    ButtonImages(1, 1, "", make_png(), make_png())])
+        self.assertIsInstance(caught.exception, ConnectionError)
+        self.assertIn("reset by peer", str(caught.exception))
         self.assertTrue((self.backups / caught.exception.backup).exists())
 
     def test_second_deploy_while_first_runs_is_refused(self):
