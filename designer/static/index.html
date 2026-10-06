@@ -1,3 +1,40 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>Button Designer</title></head>
-<body><p>Button Designer</p></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Button Designer</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/static/style.css">
+  <script type="module" src="/static/app.js"></script>
+</head>
+<body>
+  <header class="bar">
+    <h1>Button Designer</h1>
+    <label class="host">Keypad
+      <input id="host" list="keypads" placeholder="IP address, e.g. 172.17.0.46" spellcheck="false">
+      <datalist id="keypads"></datalist>
+    </label>
+    <button id="find" type="button">Find</button>
+    <button id="load" type="button">Load</button>
+    <button id="deploy" type="button" class="primary" disabled>Deploy</button>
+    <button id="restore" type="button" hidden>Restore backup</button>
+    <p id="status" role="status">Enter the keypad's IP address, then click Load.</p>
+  </header>
+  <main>
+    <section class="pane keypad-pane" aria-label="Keypad">
+      <nav id="page-tabs" aria-label="Pages"></nav>
+      <div id="keypad" class="keypad"></div>
+      <label class="toggle"><input id="show-on" type="checkbox"> Show ON state</label>
+    </section>
+    <section id="editor" class="pane editor-pane empty" aria-label="Editor"></section>
+    <section class="pane library-pane" aria-label="Library">
+      <h2>Library</h2>
+      <button id="save-recipe" type="button" disabled>Save to library</button>
+      <div id="library" class="thumbs"></div>
+      <h2>Ready-made</h2>
+      <div id="ready-made" class="thumbs"></div>
+    </section>
+  </main>
+</body>
+</html>
