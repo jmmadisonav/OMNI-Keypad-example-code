@@ -87,6 +87,7 @@ class _Handler(BaseHTTPRequestHandler):
 
     def _handle(self, method: str) -> None:
         path = urllib.parse.urlsplit(self.path).path
+        self._host = None                         # Set by _host_from() on keypad routes.
         try:
             # Read the body first, so an early refusal doesn't reset the connection.
             self._raw = self._read_body() if method in ("POST", "PUT", "DELETE") else b""
@@ -111,8 +112,11 @@ class _Handler(BaseHTTPRequestHandler):
         except ValueError as error:
             self._json({"error": str(error)}, 400)
         except (OSError, HControlError) as error:
-            host = getattr(self, "_host", "the keypad")
-            self._json({"error": f"couldn't talk to the keypad at {host}: {error}"}, 502)
+            if self._host is None:                # Files, not the network.
+                traceback.print_exc()
+                self._json({"error": f"couldn't read or write the designer's files: {error}"}, 500)
+            else:
+                self._json({"error": f"couldn't talk to the keypad at {self._host}: {error}"}, 502)
         except Exception as error:              # Show the traceback in the console.
             traceback.print_exc()
             self._json({"error": f"unexpected error: {error}"}, 500)
@@ -163,7 +167,8 @@ class _Handler(BaseHTTPRequestHandler):
             return self._json(self.projects.list())
         if route == ("POST", "projects"):
             body = self._body()
-            return self._json(self.projects.new(_field(body, "name", str).strip()))
+            return self._json(self.projects.new(_field(body, "name", str).strip(),
+                                                unique=bool(body.get("unique"))))
         if route == ("POST", "projects", "from-keypad"):
             body = self._body()
             host = self._host_from(body)
@@ -191,7 +196,11 @@ class _Handler(BaseHTTPRequestHandler):
                 design = self.projects.design(name)
                 result = self.ops.deploy_project(host, design, self.projects.base_fingerprint(name),
                                                  force=bool(body.get("force")))
-                self.projects.set_base(name, result["fingerprint"])
+                try:
+                    self.projects.set_base(name, result["fingerprint"])
+                except OSError as error:
+                    raise HttpError(500, f"the keypad at {host} has the new design, but the "
+                                         f"designer couldn't record that in {name}: {error}") from None
                 return self._json(result)
         if route == ("GET", "library"):
             return self._json(self.library.list())

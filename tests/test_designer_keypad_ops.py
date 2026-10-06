@@ -206,6 +206,15 @@ class KeypadOpsTests(unittest.TestCase):
                          result["fingerprint"])
         self.assertEqual(list(self.backups.glob("backup_*")), [])
 
+    def test_deploy_project_to_a_keypad_that_stops_answering_uploads_nothing(self):
+        # A slow or stalled keypad must not be mistaken for one with no design,
+        # or its design would be replaced with no backup.
+        self.keypad.ignore.update({"getfile", "get"})
+        self.ops.timeout = 0.5
+        with self.assertRaisesRegex(TimeoutError, "stopped responding"):
+            self.ops.deploy_project("127.0.0.1", self.project(), "")
+        self.assertEqual(self.keypad.files[DESIGN_PATH], self.data)
+
     def test_deploy_project_refuses_a_different_design_unless_forced(self):
         with self.assertRaisesRegex(ConflictError, "different design"):
             self.ops.deploy_project("127.0.0.1", self.project(), "f" * 32)

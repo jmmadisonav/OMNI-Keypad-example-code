@@ -214,6 +214,12 @@ class KeypadOps:
             try:
                 current = self._download(host)    # ConnectionError if unreachable.
             except TimeoutError:
+                # A keypad with no design never answers the download. A slow or
+                # stalled keypad doesn't either, so check that it still answers
+                # before uploading without a backup.
+                if not self._answers(host):
+                    raise TimeoutError(f"the keypad at {host} stopped responding while it "
+                                       "sent its design. Nothing was uploaded.") from None
                 current = None                    # No design to back up.
             backup = ""
             if current is not None:
@@ -261,6 +267,15 @@ class KeypadOps:
             raise TimeoutError(
                 f"the keypad at {host} didn't send its design. It might have no design "
                 "loaded, for example after a factory reset.") from None
+
+    def _answers(self, host: str) -> bool:
+        """Return True if the keypad answers a quick request on a new connection."""
+        try:
+            with HControlClient(host, self.port, timeout=min(self.timeout, 5)) as kp:
+                kp.get("/configuration/device/model", fmt="string")
+            return True
+        except (OSError, HControlError):
+            return False
 
     def _upload(self, host: str, data: bytes, fingerprint: str) -> None:
         """Upload a packed design and wait until the keypad runs it.

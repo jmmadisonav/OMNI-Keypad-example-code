@@ -86,6 +86,54 @@ class ProjectStoreTests(unittest.TestCase):
                          ["A_OFF.png"])
         self.assertEqual([p.name for p in self.folder.iterdir()], ["Lobby"])   # No temp folders.
 
+    def test_failed_swap_and_failed_rollback_keep_the_previous_version(self):
+        self.store.new("Lobby")
+        real_rename = Path.rename
+        calls = []
+
+        def rename(path, target):
+            calls.append(path)
+            if len(calls) >= 2:              # Swap in the new folder, and the rollback, fail.
+                raise PermissionError("locked")
+            return real_rename(path, target)
+
+        with mock.patch.object(Path, "rename", rename), self.assertRaises(OSError) as caught:
+            self.store.save("Lobby", [], None, {})
+        kept = [p for p in self.folder.iterdir() if (p / "keypad.json").exists()]
+        self.assertEqual(len(kept), 1, "the previous version must survive somewhere")
+        self.assertIn(kept[0].name, str(caught.exception))
+
+    def test_concurrent_saves_of_one_project_both_succeed(self):
+        import threading
+        self.store.new("Lobby")
+        real_save = Design.save
+
+        def slow_save(design, folder):
+            time.sleep(0.2)                  # Widen the window between the two renames.
+            real_save(design, folder)
+
+        errors = []
+
+        def save(seed):
+            try:
+                self.store.save("Lobby", [ButtonImages(1, 1, f"S{seed}", make_png(seed=seed),
+                                                        make_png(seed=seed + 1))], None, {})
+            except Exception as error:      # noqa: BLE001 - collected for the assertion.
+                errors.append(error)
+
+        with mock.patch.object(Design, "save", slow_save):
+            threads = [threading.Thread(target=save, args=(n,)) for n in (1, 3)]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(10)
+        self.assertEqual(errors, [])
+        self.assertEqual(self.store.design("Lobby").missing_images(), [])
+
+    def test_new_with_unique_picks_a_free_name(self):
+        (self.folder / "Untitled").mkdir()   # A leftover folder that isn't a project.
+        self.assertEqual(self.store.new("Untitled", unique=True)["name"], "Untitled 2")
+
     def test_new_and_copy_refuse_taken_names(self):
         self.store.new("Lobby")
         self.store.new("Hall")

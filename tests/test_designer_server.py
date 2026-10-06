@@ -216,6 +216,27 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(self.json_request("POST", "/api/projects/Nope/deploy",
                                            {"host": "127.0.0.1"})[0], 404)
 
+    def test_disk_errors_on_save_are_500_not_keypad_errors(self):
+        self.json_request("POST", "/api/projects", {"name": "Lobby"})
+        with mock.patch.object(self.projects, "save", side_effect=PermissionError("locked")):
+            status, body = self.json_request("PUT", "/api/projects/Lobby", {"buttons": [], "recipes": {}})
+        self.assertEqual(status, 500)
+        self.assertIn("couldn't read or write", body["error"])
+        self.assertNotIn("keypad", body["error"])
+
+    def test_failure_to_record_a_deploy_says_the_keypad_was_updated(self):
+        project = self.from_keypad()
+        with mock.patch.object(self.projects, "set_base", side_effect=PermissionError("locked")):
+            status, body = self.json_request(
+                "POST", f"/api/projects/{urllib.parse.quote(project['name'])}/deploy", {"host": "127.0.0.1"})
+        self.assertEqual(status, 500)
+        self.assertIn("has the new design", body["error"])
+
+    def test_new_project_can_ask_for_a_free_name(self):
+        self.json_request("POST", "/api/projects", {"name": "Untitled"})
+        status, project = self.json_request("POST", "/api/projects", {"name": "Untitled", "unique": True})
+        self.assertEqual((status, project["name"]), (200, "Untitled 2"))
+
     def test_old_design_routes_are_gone(self):
         self.assertEqual(self.json_request("POST", "/api/design/load", {"host": "127.0.0.1"})[0], 404)
         self.assertEqual(self.json_request("POST", "/api/design/deploy", {"host": "127.0.0.1"})[0], 404)

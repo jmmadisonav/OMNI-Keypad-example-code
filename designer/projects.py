@@ -14,6 +14,7 @@ import json
 import re
 import secrets
 import shutil
+import threading
 from pathlib import Path
 
 from designer.keypad_ops import ButtonImages, Layout, apply_buttons, apply_layout, blank_page
@@ -37,6 +38,7 @@ class ProjectStore:
         self.folder = Path(folder)
         self.folder.mkdir(parents=True, exist_ok=True)
         self.template = Path(template)
+        self._lock = threading.RLock()            # One write at a time.
 
     def list(self) -> list[dict]:
         found = []
@@ -60,7 +62,12 @@ class ProjectStore:
             number += 1
         return name
 
-    def new(self, name: str) -> dict:
+    def new(self, name: str, unique: bool = False) -> dict:
+        """Create a project from the template. With unique, pick a free name."""
+        with self._lock:
+            return self._new(self.unique_name(name) if unique else name)
+
+    def _new(self, name: str) -> dict:
         self._new_path(name)
         config = json.loads(self.template.read_text(encoding="utf-8"))
         page = blank_page(config["pages"][0])
@@ -96,6 +103,11 @@ class ProjectStore:
 
     def save(self, name: str, buttons: list[ButtonImages], layout: Layout | None,
              recipes: dict) -> dict:
+        with self._lock:
+            return self._save(name, buttons, layout, recipes)
+
+    def _save(self, name: str, buttons: list[ButtonImages], layout: Layout | None,
+              recipes: dict) -> dict:
         design = self.design(name)
         meta = self._meta(name)
         if layout is not None:
@@ -110,23 +122,27 @@ class ProjectStore:
         return self.open(name)
 
     def copy(self, name: str, to: str) -> dict:
-        design = self.design(name)
-        meta = self._meta(name)
-        self._new_path(to)
-        self._write(to, design, meta)
-        return self.open(to)
+        with self._lock:
+            design = self.design(name)
+            meta = self._meta(name)
+            self._new_path(to)
+            self._write(to, design, meta)
+            return self.open(to)
 
     def import_design(self, name: str, data: bytes, base_fingerprint: str) -> dict:
-        self._new_path(name)
-        design = Design.from_cpio(data)
-        design.prune_images()
-        self._write(name, design, _empty_meta(base_fingerprint))
-        return self.open(name)
+        with self._lock:
+            self._new_path(name)
+            design = Design.from_cpio(data)
+            design.prune_images()
+            self._write(name, design, _empty_meta(base_fingerprint))
+            return self.open(name)
 
     def set_base(self, name: str, fingerprint: str) -> None:
-        meta = self._meta(name)
-        meta["baseFingerprint"] = fingerprint
-        (self._path(name) / _META).write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+        with self._lock:
+            meta = self._meta(name)
+            meta["baseFingerprint"] = fingerprint
+            (self._path(name) / _META).write_text(json.dumps(meta, indent=2) + "\n",
+                                                  encoding="utf-8")
 
     # -- Helpers -----------------------------------------------------------------
 
@@ -151,6 +167,7 @@ class ProjectStore:
         target = self._path(name)
         temp = self.folder / f".{secrets.token_hex(4)}.tmp"
         old = None
+        swapped = False
         try:
             design.save(temp)
             (temp / _META).write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
@@ -159,14 +176,19 @@ class ProjectStore:
                 target.rename(old)
             try:
                 temp.rename(target)
-            except OSError:
+                swapped = True
+            except OSError as error:
                 if old is not None:
-                    old.rename(target)            # Put the previous version back.
-                    old = None
+                    try:
+                        old.rename(target)        # Put the previous version back.
+                        old = None
+                    except OSError:
+                        raise OSError(f"couldn't save {name}, or put the previous version back. "
+                                      f"The previous version is in {old}: {error}") from error
                 raise
         finally:
             shutil.rmtree(temp, ignore_errors=True)
-            if old is not None:
+            if old is not None and swapped:       # Only once the new version is in place.
                 shutil.rmtree(old, ignore_errors=True)
 
 
