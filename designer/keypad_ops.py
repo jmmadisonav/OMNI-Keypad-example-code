@@ -147,7 +147,11 @@ class KeypadOps:
 
     def _download(self, host: str) -> bytes:
         try:
-            with HControlClient(host, self.port, timeout=self.timeout) as kp:
+            client = HControlClient(host, self.port, timeout=self.timeout)
+        except OSError as error:
+            raise ConnectionError(f"couldn't connect to the keypad at {host}: {error}") from None
+        try:
+            with client as kp:
                 return kp.get_file(DESIGN_PATH)
         except TimeoutError:
             raise TimeoutError(

@@ -1,0 +1,231 @@
+#!/usr/bin/env python3
+"""Design OMNI keypad button images in your browser and deploy them.
+
+Usage:
+    python designer/server.py [--port 8044] [--no-browser]
+
+The server listens on 127.0.0.1 only, and opens the designer in your
+default browser.
+"""
+
+from __future__ import annotations
+
+import argparse
+import base64
+import binascii
+import json
+import sys
+import traceback
+import urllib.parse
+import webbrowser
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))          # For hcontrol, keypad_design, and designer.
+
+from hcontrol import HControlError, discover as hcontrol_discover  # noqa: E402
+from designer.assets import GraphicsZip  # noqa: E402
+from designer.keypad_ops import (BusyError, ButtonImages, ConflictError,  # noqa: E402
+                                 DeployTimeout, KeypadOps)
+from designer.library import Library  # noqa: E402
+
+MAX_BODY = 32 * 1024 * 1024
+STATIC_DIRS = {"static": HERE / "static", "vendor": HERE / "vendor"}
+CONTENT_TYPES = {
+    ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
+    ".mjs": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
+    ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png",
+    ".ttf": "font/ttf", ".txt": "text/plain; charset=utf-8",
+}
+
+
+class HttpError(Exception):
+    def __init__(self, status: int, message: str, **extra):
+        super().__init__(message)
+        self.status = status
+        self.extra = extra
+
+
+def make_server(port: int, ops: KeypadOps, library: Library, graphics: GraphicsZip,
+                discover=hcontrol_discover) -> ThreadingHTTPServer:
+    class Handler(_Handler):
+        pass
+    Handler.ops, Handler.library, Handler.graphics, Handler.discover = (
+        ops, library, graphics, staticmethod(discover))
+    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    server.daemon_threads = True
+    return server
+
+
+class _Handler(BaseHTTPRequestHandler):
+    ops: KeypadOps
+    library: Library
+    graphics: GraphicsZip
+
+    def do_GET(self):
+        self._handle("GET")
+
+    def do_POST(self):
+        self._handle("POST")
+
+    def do_PUT(self):
+        self._handle("PUT")
+
+    def do_DELETE(self):
+        self._handle("DELETE")
+
+    def log_message(self, format, *args):
+        pass                                    # Errors are printed in _handle().
+
+    # -- Dispatch ------------------------------------------------------------------
+
+    def _handle(self, method: str) -> None:
+        path = urllib.parse.urlsplit(self.path).path
+        try:
+            self._route(method, path)
+        except HttpError as error:
+            self._json({"error": str(error), **error.extra}, error.status)
+        except ConflictError as error:
+            self._json({"error": str(error), "conflict": True}, 409)
+        except BusyError as error:
+            self._json({"error": str(error), "busy": True}, 409)
+        except DeployTimeout as error:
+            self._json({"error": str(error), "backup": error.backup}, 504)
+        except TimeoutError as error:
+            self._json({"error": str(error)}, 504)
+        except FileNotFoundError as error:
+            self._json({"error": str(error)}, 404)
+        except (ValueError, IndexError, KeyError, TypeError) as error:
+            self._json({"error": str(error).strip("'\"")}, 400)
+        except (OSError, HControlError) as error:
+            host = getattr(self, "_host", "the keypad")
+            self._json({"error": f"couldn't talk to the keypad at {host}: {error}"}, 502)
+        except Exception as error:              # Show the traceback in the console.
+            traceback.print_exc()
+            self._json({"error": f"unexpected error: {error}"}, 500)
+
+    def _route(self, method: str, path: str) -> None:
+        parts = [urllib.parse.unquote(p) for p in path.split("/") if p]
+        if method == "GET" and not parts:
+            return self._file(HERE / "static" / "index.html")
+        if method == "GET" and parts[0] in STATIC_DIRS:
+            return self._static(STATIC_DIRS[parts[0]], parts[1:])
+        if method == "GET" and parts[0] == "asset" and len(parts) >= 2:
+            try:
+                data = self.graphics.read("/".join(parts[1:]))
+            except KeyError:
+                raise HttpError(404, "there's no such image in Keypad Graphics.zip") from None
+            return self._bytes(data, "image/png")
+        if parts[:1] != ["api"]:
+            raise HttpError(404, f"no such page: {path}")
+        route = (method, *parts[1:])
+        if route == ("GET", "assets"):
+            return self._json(self.graphics.catalog())
+        if route == ("GET", "keypads"):
+            found = [d for d in self.discover() if str(d.get("model", "")).startswith("OMNI-KP")]
+            return self._json([{k: d.get(k, "") for k in ("ip", "name", "model", "version")}
+                               for d in found])
+        if route == ("GET", "backups"):
+            return self._json(self.ops.backups())
+        if route == ("POST", "design", "load"):
+            body = self._body()
+            return self._json(self.ops.load(self._host_from(body)))
+        if route == ("POST", "design", "deploy"):
+            body = self._body()
+            host = self._host_from(body)
+            buttons = [ButtonImages.from_json(item) for item in body["buttons"]]
+            if not buttons:
+                raise ValueError("there are no changed buttons to deploy")
+            return self._json(self.ops.deploy(host, str(body["fingerprint"]), buttons,
+                                              force=bool(body.get("force"))))
+        if route == ("POST", "design", "restore"):
+            body = self._body()
+            return self._json(self.ops.restore(self._host_from(body), str(body["backup"])))
+        if route == ("GET", "library"):
+            return self._json(self.library.list())
+        if len(route) == 3 and route[1] == "library":
+            name = route[2]
+            if method == "GET":
+                return self._json(self.library.get(name))
+            if method == "PUT":
+                body = self._body()
+                try:
+                    thumbnail = base64.b64decode(body["thumbnail"], validate=True)
+                except binascii.Error:
+                    raise ValueError("the thumbnail isn't valid base64") from None
+                return self._json(self.library.save(name, body["recipe"], thumbnail))
+            if method == "DELETE":
+                self.library.delete(name)
+                return self._json({})
+        raise HttpError(404, f"no such API: {method} {path}")
+
+    # -- Requests and responses ---------------------------------------------------------
+
+    def _body(self) -> dict:
+        length = int(self.headers.get("Content-Length") or 0)
+        if length > MAX_BODY:
+            raise HttpError(413, "the request is too large")
+        try:
+            body = json.loads(self.rfile.read(length) or b"{}")
+        except json.JSONDecodeError as error:
+            raise HttpError(400, f"the request isn't valid JSON: {error}") from None
+        if not isinstance(body, dict):
+            raise HttpError(400, "the request must be a JSON object")
+        return body
+
+    def _host_from(self, body: dict) -> str:
+        host = str(body.get("host") or "").strip()
+        if not host:
+            raise ValueError("enter the keypad's IP address")
+        self._host = host
+        return host
+
+    def _static(self, folder: Path, parts: list[str]) -> None:
+        target = folder.joinpath(*parts).resolve() if parts else folder
+        if not target.is_relative_to(folder.resolve()) or not target.is_file():
+            raise HttpError(404, "file not found")
+        self._file(target)
+
+    def _file(self, path: Path) -> None:
+        self._bytes(path.read_bytes(),
+                    CONTENT_TYPES.get(path.suffix.lower(), "application/octet-stream"))
+
+    def _json(self, value, status: int = 200) -> None:
+        self._bytes(json.dumps(value).encode("utf-8"), "application/json", status)
+
+    def _bytes(self, data: bytes, content_type: str, status: int = 200) -> None:
+        self.send_response(status)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(data)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--port", type=int, default=8044)
+    parser.add_argument("--no-browser", action="store_true", help="don't open a browser")
+    args = parser.parse_args()
+    try:
+        server = make_server(args.port, KeypadOps(HERE / "backups"), Library(HERE / "library"),
+                             GraphicsZip())
+    except OSError as error:
+        sys.exit(f"Couldn't listen on port {args.port}: {error}. Try --port with another number.")
+    url = f"http://127.0.0.1:{server.server_address[1]}/"
+    print(f"Button designer running at {url}. Press Ctrl+C to stop.", flush=True)
+    if not args.no_browser:
+        webbrowser.open(url)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
+
+
+if __name__ == "__main__":
+    main()

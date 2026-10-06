@@ -113,6 +113,13 @@ class KeypadOpsTests(unittest.TestCase):
         with self.assertRaisesRegex(TimeoutError, "no design loaded"):
             self.ops.load("127.0.0.1")
 
+    def test_load_from_unreachable_keypad_is_a_connection_error(self):
+        # On Windows a closed port times out instead of refusing, so a
+        # connect timeout must not be reported as "no design loaded".
+        self.ops.port, self.ops.timeout = 1, 0.5
+        with self.assertRaisesRegex(ConnectionError, "couldn't connect"):
+            self.ops.load("127.0.0.1")
+
     def test_deploy_backs_up_uploads_and_returns_new_fingerprint(self):
         fingerprint = original().fingerprint
         result = self.ops.deploy("127.0.0.1", fingerprint, [
