@@ -80,3 +80,19 @@ export function layoutRequest(layout) {
     }),
   };
 }
+
+// Saved projects key button layers by page number ("2-3"); the page keys
+// them by page id ("L2-3"), like edits.
+export function recipesFromSaved(saved) {
+  return Object.fromEntries(Object.entries(saved || {}).map(([k, recipe]) => [`L${k}`, recipe]));
+}
+
+export function recipesRequest(layout, recipes) {
+  const result = {};
+  for (const [k, recipe] of recipes) {
+    const [pageId, button] = k.split("-");
+    const page = pageNumber(layout, pageId);
+    if (page) result[`${page}-${button}`] = recipe;
+  }
+  return result;
+}

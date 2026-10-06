@@ -2,7 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   MAX_PAGES, layoutFromConfig, addPage, renamePage, deletePage, setDestination,
-  destinationOf, destinationsTo, pageNumber, pageName, layoutRequest,
+  destinationOf, destinationsTo, pageNumber, pageName, layoutRequest, recipesFromSaved,
+  recipesRequest,
 } from "./pages.js";
 
 const button = (destination = "") => ({ offImage: [], onImage: [], destination });
@@ -75,4 +76,19 @@ test("layoutRequest uses current numbers and names", () => {
     pages: [{ name: "Main", source: 2 }, { name: layout.pages[1].name, source: null }],
     destinations: [{ page: 2, button: 1, destination: "Main" }],
   });
+});
+
+test("recipesFromSaved keys recipes by loaded page id", () => {
+  const recipe = { version: 1, name: "", layers: [] };
+  assert.deepEqual(recipesFromSaved({ "1-3": recipe, "2-8": recipe }), { "L1-3": recipe, "L2-8": recipe });
+  assert.deepEqual(recipesFromSaved(undefined), {});
+});
+
+test("recipesRequest drops deleted pages and renumbers", () => {
+  const a = { version: 1, name: "a", layers: [] };
+  const b = { version: 1, name: "b", layers: [] };
+  let layout = addPage(layoutFromConfig(config));                   // L1, L2, N1
+  layout = deletePage(layout, "L1");                                // L2, N1
+  const recipes = new Map([["L1-1", a], ["L2-2", b], ["N1-4", a]]);
+  assert.deepEqual(recipesRequest(layout, recipes), { "1-2": b, "2-4": a });
 });
