@@ -132,7 +132,7 @@ def apply_layout(design: Design, layout: Layout) -> None:
     pages = []
     for name, source in layout.pages:
         if source is None:
-            page = _blank_page(old[0])
+            page = blank_page(old[0])
         elif 1 <= source <= len(old):
             page = copy.deepcopy(old[source - 1])
         else:
@@ -152,7 +152,7 @@ def apply_layout(design: Design, layout: Layout) -> None:
     design.prune_images()
 
 
-def _blank_page(template: dict) -> dict:
+def blank_page(template: dict) -> dict:
     page = copy.deepcopy(template)
     for button in page.get("buttons", []):
         button["offImage"], button["onImage"], button["altImage"] = [], [], []
