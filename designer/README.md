@@ -53,6 +53,29 @@ the keypad has no design loaded.
 If someone deployed to the keypad after you clicked **Load**, the designer
 asks before it replaces their design.
 
+## Add pages and switch between them
+
+The page tabs above the keypad view show the design's pages. To change them,
+use the buttons next to the tabs:
+
+- To add a page, click **+**. A new page has page 1's dial and LED ring
+  settings and no button images. A design can have up to 9 pages.
+- To rename the current page, click **Rename**. Buttons that switch to the
+  page keep switching to it.
+- To delete the current page, click **Delete**. Buttons that switch to it
+  stop switching pages.
+
+To make a button switch pages, select the button, and then choose a page in
+**Go to page**. The keypad switches pages by itself, without any app running.
+A badge such as **→ Lights** marks each button that switches pages.
+
+Page changes count toward **Deploy**, and go to the keypad with your image
+changes.
+
+**Note:** HControl paths use page numbers, such as `/page3/button1/action`.
+Adding a page only adds new numbers. Deleting a page moves the pages after it
+up one number, so update any app that uses their paths.
+
 ## Reuse designs with the library
 
 To keep a button's layers so you can change them later, click **Save to

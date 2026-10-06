@@ -30,7 +30,7 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 #status { margin: 0 0 0 8px; color: var(--muted); flex: 1 1 200px; }
 #status.error { color: var(--danger); }
 
-main { display: grid; grid-template-columns: auto 1fr 260px; gap: 16px; padding: 16px;
+main { display: grid; grid-template-columns: auto minmax(0, 1fr) 260px; gap: 16px; padding: 16px;
        align-items: start; }
 @media (max-width: 1400px) { main { grid-template-columns: auto 1fr; }
                              .library-pane { grid-column: 1 / -1; } }
@@ -38,7 +38,12 @@ main { display: grid; grid-template-columns: auto 1fr 260px; gap: 16px; padding:
 .pane { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
 .pane h2 { font-size: 13px; text-transform: uppercase; color: var(--muted); margin: 12px 0 8px; }
 
-#page-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.page-bar { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-bottom: 8px; }
+#page-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-right: auto; }
+.goto { display: block; margin-top: 8px; }
+.goto-badge { position: absolute; left: 4px; top: 4px; max-width: calc(100% - 8px);
+              padding: 1px 5px; border-radius: 8px; font-size: 11px; white-space: nowrap;
+              overflow: hidden; text-overflow: ellipsis; background: var(--accent); color: #fff; }
 #page-tabs button[aria-current="page"] { border-color: var(--accent); }
 /* The keypad view looks like the OMNI-KP-8BV: a square black faceplate with
    the 4x2 screen at the top and the dial and LED ring below. */
@@ -65,8 +70,9 @@ main { display: grid; grid-template-columns: auto 1fr 260px; gap: 16px; padding:
 .editor-pane.empty .editor-canvases, .editor-pane.empty .layer-toolbar,
 .editor-pane.empty .layer-list { display: none; }
 .editor-canvases { display: flex; gap: 16px; }
-.editor-canvases figure { margin: 0; text-align: center; color: var(--muted); }
-.editor-canvas { width: 376px; height: 376px; background: #000;
+/* The canvases shrink to fit, up to 2x the 188-pixel image. */
+.editor-canvases figure { flex: 0 1 376px; min-width: 0; margin: 0; text-align: center; color: var(--muted); }
+.editor-canvas { display: block; width: 100%; height: auto; aspect-ratio: 1; background: #000;
                  background-image: linear-gradient(45deg, #222 25%, transparent 25%, transparent 75%, #222 75%),
                                    linear-gradient(45deg, #222 25%, transparent 25%, transparent 75%, #222 75%);
                  background-size: 16px 16px; background-position: 0 0, 8px 8px;

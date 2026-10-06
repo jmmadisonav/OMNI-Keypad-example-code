@@ -5,6 +5,10 @@ import { getJson, sendJson, assetUrl } from "./api.js";
 import { GRID, buttonKey, recipeFromImages } from "./model.js";
 import { renderRecipe, toBase64, loadIcons } from "./render.js";
 import { createEditor } from "./editor.js";
+import {
+  layoutFromConfig, addPage, renamePage, deletePage, setDestination, destinationOf,
+  destinationsTo, pageNumber, pageName, layoutRequest,
+} from "./pages.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -12,10 +16,12 @@ const state = {
   catalog: null,
   design: null,          // { fingerprint, config, images: {name: base64} }
   host: "",
-  page: 1,
-  selected: null,        // { page, button }
-  edits: new Map(),      // buttonKey -> recipe
-  previews: new Map(),   // buttonKey -> { off: dataURL, on: dataURL }
+  layout: null,          // Pages and page switching; see pages.js.
+  layoutChanges: 0,      // Page and page-switching changes not deployed yet.
+  pageId: "",            // The page shown in the keypad view.
+  selected: null,        // { pageId, button }
+  edits: new Map(),      // buttonKey(pageId, button) -> recipe
+  previews: new Map(),   // buttonKey(pageId, button) -> { off: dataURL, on: dataURL }
   busy: false,
 };
 
@@ -36,8 +42,16 @@ function storage(action, value) {
 
 // -- Keypad view ----------------------------------------------------------------------
 
-function designImage(page, button, key) {
-  const names = state.design.config.pages[page - 1].buttons[button - 1]?.[key] || [];
+// The loaded page a page comes from; new pages use page 1's structure.
+function sourcePage(pageId) {
+  const source = state.layout.pages.find((p) => p.id === pageId)?.source;
+  return state.design.config.pages[(source || 1) - 1];
+}
+
+function designImage(pageId, button, key) {
+  const source = state.layout.pages.find((p) => p.id === pageId)?.source;
+  if (!source) return "";                                // New pages start empty.
+  const names = state.design.config.pages[source - 1].buttons[button - 1]?.[key] || [];
   const data = names[0] && state.design.images[names[0]];
   return data ? `data:image/png;base64,${data}` : "";
 }
@@ -45,60 +59,152 @@ function designImage(page, button, key) {
 function renderTabs() {
   const tabs = $("page-tabs");
   tabs.innerHTML = "";
-  state.design.config.pages.forEach((page, i) => {
+  state.layout.pages.forEach((page) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.textContent = page.name || `Page ${i + 1}`;
-    if (i + 1 === state.page) button.setAttribute("aria-current", "page");
-    button.addEventListener("click", () => { state.page = i + 1; renderTabs(); renderKeypad(); });
+    button.textContent = page.name;
+    if (page.id === state.pageId) button.setAttribute("aria-current", "page");
+    button.addEventListener("click", () => { state.pageId = page.id; renderTabs(); renderKeypad(); });
     tabs.append(button);
   });
+  for (const id of ["page-add", "page-rename", "page-delete"]) $(id).disabled = state.busy;
 }
 
 function renderKeypad() {
   const keypad = $("keypad");
   keypad.innerHTML = "";
   if (!state.design) return;
-  const page = state.design.config.pages[state.page - 1];
+  const page = sourcePage(state.pageId);
   keypad.style.gridTemplateColumns = `repeat(${GRID.columns}, var(--cell))`;
   keypad.style.background = state.design.config.display?.panel_separator_color || "#000";
   const showOn = $("show-on").checked;
   const count = Math.min(page.buttons.length, GRID.columns * GRID.rows);
   for (let button = 1; button <= count; button++) {
-    const key = buttonKey(state.page, button);
+    const key = buttonKey(state.pageId, button);
     const cell = document.createElement("button");
     cell.type = "button";
     cell.className = "cell";
     cell.style.background = page.background || "#000";
-    cell.setAttribute("aria-label", `Page ${state.page} button ${button}`);
+    cell.setAttribute("aria-label", `${pageName(state.layout, state.pageId)} button ${button}`);
     cell.classList.toggle("changed", state.edits.has(key));
-    cell.classList.toggle("selected", state.selected?.page === state.page && state.selected?.button === button);
+    cell.classList.toggle("selected", state.selected?.pageId === state.pageId && state.selected?.button === button);
     const preview = state.previews.get(key);
     const src = preview ? preview[showOn ? "on" : "off"]
-                        : designImage(state.page, button, showOn ? "onImage" : "offImage");
+                        : designImage(state.pageId, button, showOn ? "onImage" : "offImage");
     if (src) {
       const img = document.createElement("img");
       img.alt = "";
       img.src = src;
       cell.append(img);
     }
-    cell.addEventListener("click", () => selectButton(state.page, button));
+    const target = destinationOf(state.layout, state.pageId, button);
+    if (target) {
+      const badge = document.createElement("span");
+      badge.className = "goto-badge";
+      badge.textContent = `→ ${pageName(state.layout, target)}`;
+      cell.append(badge);
+    }
+    cell.addEventListener("click", () => selectButton(state.pageId, button));
     keypad.append(cell);
+  }
+  renderGoTo();
+}
+
+// -- Pages and page switching ---------------------------------------------------------
+
+function renderGoTo() {
+  const select = $("goto");
+  const sel = state.selected;
+  select.disabled = !sel || state.busy;
+  const options = [["", "None"]];
+  if (sel) {
+    for (const page of state.layout.pages) {
+      if (page.id !== sel.pageId) options.push([page.id, page.name]);
+    }
+  }
+  select.replaceChildren(...options.map(([value, label]) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    return option;
+  }));
+  select.value = (sel && destinationOf(state.layout, sel.pageId, sel.button)) || "";
+}
+
+function changeLayout(next) {
+  state.layout = next;
+  state.layoutChanges++;
+  renderTabs();
+  renderKeypad();
+  updateDeployButton();
+}
+
+function onAddPage() {
+  try {
+    const next = addPage(state.layout);
+    state.pageId = next.pages.at(-1).id;
+    changeLayout(next);
+    setStatus(`Added ${pageName(next, state.pageId)}. It has page 1's dial settings and no button images.`);
+  } catch (error) {
+    setStatus(error.message, true);
   }
 }
 
-function selectButton(page, button) {
-  state.selected = { page, button };
-  const key = buttonKey(page, button);
+function onRenamePage() {
+  const name = prompt("Page name:", pageName(state.layout, state.pageId));
+  if (name === null) return;
+  try {
+    changeLayout(renamePage(state.layout, state.pageId, name));
+  } catch (error) {
+    setStatus(error.message, true);
+  }
+}
+
+function onDeletePage() {
+  const id = state.pageId;
+  const name = pageName(state.layout, id);
+  const links = destinationsTo(state.layout, id);
+  const message = [`Delete ${name}?`,
+    links ? `${links} button(s) that go to it will stop switching pages.` : "",
+    "Pages after it move up one number, so apps that use /pageN paths need updating."]
+    .filter(Boolean).join(" ");
+  if (state.layout.pages.length > 1 && !confirm(message)) return;
+  try {
+    const next = deletePage(state.layout, id);
+    for (const key of [...state.edits.keys()]) {
+      if (key.startsWith(`${id}-`)) { state.edits.delete(key); state.previews.delete(key); }
+    }
+    if (state.selected?.pageId === id) {
+      state.selected = null;
+      editor.setRecipe(null);
+      $("save-recipe").disabled = true;
+    }
+    state.pageId = next.pages[Math.max(0, pageNumber(state.layout, id) - 2)].id;
+    changeLayout(next);
+    setStatus(`Deleted ${name}. Click Deploy to update the keypad.`);
+  } catch (error) {
+    setStatus(error.message, true);
+  }
+}
+
+function onGoToChange() {
+  const sel = state.selected;
+  if (!sel) return;
+  changeLayout(setDestination(state.layout, sel.pageId, sel.button, $("goto").value || null));
+}
+
+function selectButton(pageId, button) {
+  state.selected = { pageId, button };
+  const key = buttonKey(pageId, button);
   editor.setRecipe(state.edits.get(key) ??
-    recipeFromImages(designImage(page, button, "offImage"), designImage(page, button, "onImage")));
+    recipeFromImages(designImage(pageId, button, "offImage"), designImage(pageId, button, "onImage")));
   $("save-recipe").disabled = false;
   renderKeypad();
 }
 
 async function onEdit(recipe) {
   if (!state.selected) return;
-  const key = buttonKey(state.selected.page, state.selected.button);
+  const key = buttonKey(state.selected.pageId, state.selected.button);
   state.edits.set(key, recipe);
   updateDeployButton();
   const { off, on } = await renderRecipe(recipe, state.catalog);
@@ -107,9 +213,13 @@ async function onEdit(recipe) {
   renderKeypad();
 }
 
+function pendingChanges() {
+  return state.edits.size + state.layoutChanges;
+}
+
 function updateDeployButton() {
-  const n = state.edits.size;
-  $("deploy").textContent = n ? `Deploy (${n} changed)` : "Deploy";
+  const n = pendingChanges();
+  $("deploy").textContent = n ? `Deploy (${n} ${n === 1 ? "change" : "changes"})` : "Deploy";
   $("deploy").disabled = !n || !state.design || state.busy;
 }
 
@@ -118,7 +228,7 @@ function updateDeployButton() {
 async function loadDesign({ keepStatus = false } = {}) {
   const host = $("host").value.trim();
   if (!host) return setStatus("Enter the keypad's IP address first.", true);
-  if (state.edits.size && !confirm("Loading discards the changes you haven't deployed. Continue?")) return;
+  if (pendingChanges() && !confirm("Loading discards the changes you haven't deployed. Continue?")) return;
   setStatus(`Loading the design from ${host}…`);
   try {
     state.design = await sendJson("POST", "/api/design/load", { host });
@@ -127,7 +237,9 @@ async function loadDesign({ keepStatus = false } = {}) {
   }
   state.host = host;
   storage("set", host);
-  state.page = 1;
+  state.layout = layoutFromConfig(state.design.config);
+  state.layoutChanges = 0;
+  state.pageId = state.layout.pages[0].id;
   state.selected = null;
   state.edits.clear();
   state.previews.clear();
@@ -162,14 +274,19 @@ async function deploy(force = false) {
   try {
     const buttons = [];
     for (const [key, recipe] of state.edits) {
-      const [page, button] = key.split("-").map(Number);
+      const [pageId, button] = key.split("-");
+      const page = pageNumber(state.layout, pageId);
+      if (!page) continue;                                // Its page was deleted.
       const { off, on } = await renderRecipe(recipe, state.catalog);
-      buttons.push({ page, button, name: recipe.name || "", off: toBase64(off), on: toBase64(on) });
+      buttons.push({ page, button: Number(button), name: recipe.name || "",
+                     off: toBase64(off), on: toBase64(on) });
     }
     setStatus("Deploying. The keypad restarts, which takes about 20 seconds…");
-    const result = await sendJson("POST", "/api/design/deploy",
-      { host: state.host, fingerprint: state.design.fingerprint, buttons, force });
+    const request = { host: state.host, fingerprint: state.design.fingerprint, buttons, force };
+    if (state.layoutChanges) request.layout = layoutRequest(state.layout);
+    const result = await sendJson("POST", "/api/design/deploy", request);
     state.edits.clear();
+    state.layoutChanges = 0;
     state.busy = false;
     await loadDesign({ keepStatus: true });
     await refreshBackups(result.backup);
@@ -208,6 +325,7 @@ async function restore() {
     await sendJson("POST", "/api/design/restore", { host, backup });
     state.host = host;
     state.edits.clear();
+    state.layoutChanges = 0;
     state.busy = false;
     await loadDesign({ keepStatus: true });
     setStatus(`Restored ${backup}.`);
@@ -341,9 +459,13 @@ async function start() {
   $("deploy").addEventListener("click", () => deploy());
   $("restore").addEventListener("click", restore);
   $("show-on").addEventListener("change", renderKeypad);
+  $("page-add").addEventListener("click", onAddPage);
+  $("page-rename").addEventListener("click", onRenamePage);
+  $("page-delete").addEventListener("click", onDeletePage);
+  $("goto").addEventListener("change", onGoToChange);
   $("save-recipe").addEventListener("click", saveRecipe);
   window.addEventListener("beforeunload", (event) => {
-    if (state.edits.size) { event.preventDefault(); event.returnValue = ""; }
+    if (pendingChanges()) { event.preventDefault(); event.returnValue = ""; }
   });
 }
 
