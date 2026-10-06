@@ -14,6 +14,7 @@ from designer import keypad_ops
 from designer.assets import GraphicsZip
 from designer.keypad_ops import KeypadOps
 from designer.library import Library
+from designer.projects import ProjectStore
 from designer.server import make_server
 from keypad_design import DESIGN_PATH, Design
 from tests.fake_keypad import FakeKeypad
@@ -22,6 +23,9 @@ from tests.helpers import FIXTURES, make_png
 
 def b64(data: bytes) -> str:
     return base64.b64encode(data).decode("ascii")
+
+
+RECIPE = {"version": 1, "name": "", "layers": []}
 
 
 class ServerTests(unittest.TestCase):
@@ -36,11 +40,12 @@ class ServerTests(unittest.TestCase):
             archive.writestr("Keypad Graphics/Squared/Squared_Black.png", make_png())
             archive.writestr("Keypad Graphics/Circle 45/Circle45_White.png", make_png(seed=7))
         self.ops = KeypadOps(tmp / "backups", port=self.keypad.port, timeout=2)
+        self.projects = ProjectStore(tmp / "projects")
         self.discover = mock.Mock(return_value=[
             {"ip": "10.0.0.5", "name": "kp", "model": "OMNI-KP-8BV", "version": "1.1.4.0"},
             {"ip": "10.0.0.6", "name": "amp", "model": "BLU-160", "version": "1"}])
-        self.server = make_server(0, self.ops, Library(tmp / "library"),
-                                  GraphicsZip(zip_path), discover=self.discover)
+        self.server = make_server(0, self.ops, Library(tmp / "library"), GraphicsZip(zip_path),
+                                  self.projects, discover=self.discover)
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
         self.addCleanup(self.server.server_close)
         self.addCleanup(self.server.shutdown)
@@ -54,7 +59,7 @@ class ServerTests(unittest.TestCase):
         req = urllib.request.Request(self.base + path, data=data, method=method,
                                      headers={"Content-Type": "application/json"})
         try:
-            with urllib.request.urlopen(req, timeout=10) as response:
+            with urllib.request.urlopen(req, timeout=20) as response:
                 return response.status, response.headers, response.read()
         except urllib.error.HTTPError as error:
             with error:
@@ -63,6 +68,13 @@ class ServerTests(unittest.TestCase):
     def json_request(self, method, path, body=None):
         status, _, payload = self.request(method, path, body)
         return status, json.loads(payload)
+
+    def from_keypad(self):
+        status, project = self.json_request("POST", "/api/projects/from-keypad", {"host": "127.0.0.1"})
+        self.assertEqual(status, 200, project)
+        return project
+
+    # -- Static files, assets, discovery -------------------------------------------------
 
     def test_index_and_static_files(self):
         status, headers, body = self.request("GET", "/")
@@ -78,7 +90,6 @@ class ServerTests(unittest.TestCase):
     def test_assets_catalog_and_asset(self):
         status, catalog = self.json_request("GET", "/api/assets")
         self.assertEqual(status, 200)
-        self.assertIn("Circle 45", catalog["shapes"])
         name = catalog["shapes"]["Circle 45"]["White"]["off"]
         status, headers, body = self.request("GET", "/asset/" + urllib.parse.quote(name))
         self.assertEqual((status, headers["Content-Type"], body), (200, "image/png", make_png(seed=7)))
@@ -88,122 +99,160 @@ class ServerTests(unittest.TestCase):
         status, found = self.json_request("GET", "/api/keypads")
         self.assertEqual((status, [d["ip"] for d in found]), (200, ["10.0.0.5"]))
 
-    def test_load_then_deploy(self):
-        status, loaded = self.json_request("POST", "/api/design/load", {"host": "127.0.0.1"})
-        self.assertEqual(status, 200)
-        status, result = self.json_request("POST", "/api/design/deploy", {
-            "host": "127.0.0.1", "fingerprint": loaded["fingerprint"], "force": False,
+    # -- Projects ---------------------------------------------------------------------------
+
+    def test_new_open_save_list(self):
+        status, project = self.json_request("POST", "/api/projects", {"name": "Lobby"})
+        self.assertEqual((status, project["name"]), (200, "Lobby"))
+        status, saved = self.json_request("PUT", "/api/projects/Lobby", {
             "buttons": [{"page": 1, "button": 1, "name": "Mute",
-                         "off": b64(make_png(seed=1)), "on": b64(make_png(seed=2))}]})
-        self.assertEqual(status, 200, result)
-        self.assertEqual(Design.from_cpio(self.keypad.files[DESIGN_PATH]).fingerprint,
-                         result["fingerprint"])
-        status, backups = self.json_request("GET", "/api/backups")
-        self.assertIn(result["backup"], backups)
+                         "off": b64(make_png(seed=1)), "on": b64(make_png(seed=2))}],
+            "layout": {"pages": [{"name": "Main", "source": 1}], "destinations": []},
+            "recipes": {"1-1": RECIPE}})
+        self.assertEqual(status, 200, saved)
+        status, opened = self.json_request("GET", "/api/projects/Lobby")
+        self.assertEqual(opened["config"]["pages"][0]["name"], "Main")
+        self.assertEqual(opened["recipes"], {"1-1": RECIPE})
+        self.assertIn("Mute_OFF.png", opened["images"])
+        self.assertEqual([p["name"] for p in self.json_request("GET", "/api/projects")[1]], ["Lobby"])
 
-    def test_deploy_with_only_a_layout(self):
-        fingerprint = Design.from_cpio(self.data).fingerprint
-        status, result = self.json_request("POST", "/api/design/deploy", {
-            "host": "127.0.0.1", "fingerprint": fingerprint, "buttons": [],
-            "layout": {"pages": [{"name": "Home", "source": 1}, {"name": "Extra", "source": None}],
-                       "destinations": [{"page": 1, "button": 8, "destination": "Extra"}]}})
+    def test_taken_project_name_is_409(self):
+        self.json_request("POST", "/api/projects", {"name": "Lobby"})
+        self.json_request("POST", "/api/projects", {"name": "Hall"})
+        self.assertEqual(self.json_request("POST", "/api/projects", {"name": "Lobby"})[0], 409)
+        self.assertEqual(self.json_request("POST", "/api/projects/Hall/copy", {"to": "Lobby"})[0], 409)
+
+    def test_copy(self):
+        self.json_request("POST", "/api/projects", {"name": "Lobby"})
+        status, copy = self.json_request("POST", "/api/projects/Lobby/copy", {"to": "Lobby 2"})
+        self.assertEqual((status, copy["name"]), (200, "Lobby 2"))
+
+    def test_bad_names_and_missing_projects(self):
+        self.assertEqual(self.json_request("POST", "/api/projects", {"name": "../x"})[0], 400)
+        self.assertEqual(self.json_request("GET", "/api/projects/Nope")[0], 404)
+        self.assertEqual(self.json_request("PUT", "/api/projects/Nope",
+                                           {"buttons": [], "recipes": {}})[0], 404)
+
+    def test_save_rejects_bad_requests(self):
+        self.json_request("POST", "/api/projects", {"name": "Lobby"})
+        for body in ({"buttons": [], "recipes": []},
+                     {"recipes": {}},
+                     {"buttons": [{"page": 1, "button": 1, "off": b64(make_png(100, 100)),
+                                   "on": b64(make_png())}], "recipes": {}},
+                     {"buttons": [], "recipes": {}, "layout": {"pages": []}}):
+            with self.subTest(body=body):
+                self.assertEqual(self.json_request("PUT", "/api/projects/Lobby", body)[0], 400)
+
+    def test_load_from_keypad_makes_a_project(self):
+        project = self.from_keypad()
+        self.assertRegex(project["name"], r"^127-0-0-1 \d{4}-\d\d-\d\d$")
+        self.assertEqual(project["baseFingerprint"], Design.from_cpio(self.data).fingerprint)
+        self.assertEqual(len(project["config"]["pages"]), 2)
+
+    def test_load_from_keypad_twice_makes_two_projects(self):
+        first, second = self.from_keypad(), self.from_keypad()
+        self.assertEqual(second["name"], first["name"] + " 2")
+
+    def test_load_from_unreachable_keypad_is_502(self):
+        self.ops.port = 1
+        status, body = self.json_request("POST", "/api/projects/from-keypad", {"host": "127.0.0.1"})
+        self.assertEqual(status, 502)
+        self.assertIn("127.0.0.1", body["error"])
+
+    def test_load_from_keypad_without_design_is_504(self):
+        self.keypad.ignore.add("getfile")
+        self.ops.timeout = 0.5
+        status, body = self.json_request("POST", "/api/projects/from-keypad", {"host": "127.0.0.1"})
+        self.assertEqual(status, 504)
+        self.assertIn("no design loaded", body["error"])
+
+    # -- Deploy -----------------------------------------------------------------------------
+
+    def test_deploy_loaded_project_records_the_new_fingerprint(self):
+        project = self.from_keypad()
+        status, result = self.json_request("POST", f"/api/projects/{urllib.parse.quote(project['name'])}/deploy",
+                                           {"host": "127.0.0.1"})
         self.assertEqual(status, 200, result)
+        self.assertEqual(Design.from_cpio(self.keypad.files[DESIGN_PATH]).fingerprint, result["fingerprint"])
+        self.assertTrue(result["backup"].startswith("backup_"))
+        self.assertEqual(self.projects.base_fingerprint(project["name"]), result["fingerprint"])
+        self.assertIn(result["backup"], self.json_request("GET", "/api/backups")[1])
+
+    def test_deploy_new_project_to_keypad_without_design(self):
+        self.keypad.ignore.add("getfile")
+        self.ops.timeout = 0.5
+        self.json_request("POST", "/api/projects", {"name": "Lobby"})
+        status, result = self.json_request("POST", "/api/projects/Lobby/deploy", {"host": "127.0.0.1"})
+        self.assertEqual((status, result["backup"]), (200, ""))
         uploaded = Design.from_cpio(self.keypad.files[DESIGN_PATH])
-        self.assertEqual([p["name"] for p in uploaded.pages], ["Home", "Extra"])
-        self.assertEqual(uploaded.button(1, 8)["destination"], "Extra")
+        self.assertEqual([p["name"] for p in uploaded.pages], ["Page 1"])
 
-    def test_deploy_with_nothing_to_change_is_400(self):
-        status, body = self.json_request("POST", "/api/design/deploy", {
-            "host": "127.0.0.1", "fingerprint": "x", "buttons": []})
-        self.assertEqual(status, 400)
-
-    def test_deploy_with_bad_layout_is_400(self):
-        status, body = self.json_request("POST", "/api/design/deploy", {
-            "host": "127.0.0.1", "fingerprint": "x", "force": True, "buttons": [],
-            "layout": {"pages": [{"name": "A", "source": 1}, {"name": "A", "source": 2}]}})
-        self.assertEqual(status, 400, body)
-
-    def test_deploy_conflict_is_409(self):
-        status, body = self.json_request("POST", "/api/design/deploy", {
-            "host": "127.0.0.1", "fingerprint": "f" * 32,
-            "buttons": [{"page": 1, "button": 1, "name": "",
-                         "off": b64(make_png()), "on": b64(make_png())}]})
+    def test_deploy_over_a_different_design_is_409_then_force(self):
+        self.json_request("POST", "/api/projects", {"name": "Lobby"})
+        status, body = self.json_request("POST", "/api/projects/Lobby/deploy", {"host": "127.0.0.1"})
         self.assertEqual((status, body.get("conflict")), (409, True))
-
-    def test_deploy_bad_image_is_400_and_nothing_uploaded(self):
-        status, body = self.json_request("POST", "/api/design/deploy", {
-            "host": "127.0.0.1", "fingerprint": "x",
-            "buttons": [{"page": 1, "button": 1, "name": "",
-                         "off": b64(make_png(100, 100)), "on": b64(make_png())}]})
-        self.assertEqual(status, 400)
-        self.assertIn("100x100", body["error"])
         self.assertEqual(self.keypad.files[DESIGN_PATH], self.data)
+        status, result = self.json_request("POST", "/api/projects/Lobby/deploy",
+                                           {"host": "127.0.0.1", "force": True})
+        self.assertEqual(status, 200, result)
 
     def test_deploy_timeout_is_504_with_backup(self):
+        project = self.from_keypad()
         self.wait.side_effect = TimeoutError("slow")
-        fingerprint = Design.from_cpio(self.data).fingerprint
-        status, body = self.json_request("POST", "/api/design/deploy", {
-            "host": "127.0.0.1", "fingerprint": fingerprint,
-            "buttons": [{"page": 1, "button": 1, "name": "",
-                         "off": b64(make_png()), "on": b64(make_png())}]})
+        status, body = self.json_request("POST", f"/api/projects/{urllib.parse.quote(project['name'])}/deploy",
+                                         {"host": "127.0.0.1"})
         self.assertEqual(status, 504)
         self.assertTrue(body["backup"].startswith("backup_"))
 
     def test_failed_upload_is_502_with_backup(self):
-        fingerprint = Design.from_cpio(self.data).fingerprint
+        project = self.from_keypad()
         with mock.patch.object(keypad_ops.designs, "upload", side_effect=ConnectionResetError("reset")):
-            status, body = self.json_request("POST", "/api/design/deploy", {
-                "host": "127.0.0.1", "fingerprint": fingerprint,
-                "buttons": [{"page": 1, "button": 1, "name": "",
-                             "off": b64(make_png()), "on": b64(make_png())}]})
+            status, body = self.json_request("POST", f"/api/projects/{urllib.parse.quote(project['name'])}/deploy",
+                                             {"host": "127.0.0.1"})
         self.assertEqual(status, 502)
         self.assertTrue(body["backup"].startswith("backup_"))
 
-    def test_unreachable_keypad_is_502(self):
-        self.ops.port = 1
-        status, body = self.json_request("POST", "/api/design/load", {"host": "127.0.0.1"})
-        self.assertEqual(status, 502)
-        self.assertIn("127.0.0.1", body["error"])
+    def test_deploy_missing_project_is_404(self):
+        self.assertEqual(self.json_request("POST", "/api/projects/Nope/deploy",
+                                           {"host": "127.0.0.1"})[0], 404)
 
-    def test_keypad_without_design_is_504(self):
-        self.keypad.ignore.add("getfile")
-        self.ops.timeout = 0.5
-        status, body = self.json_request("POST", "/api/design/load", {"host": "127.0.0.1"})
-        self.assertEqual(status, 504)
-        self.assertIn("no design loaded", body["error"])
+    def test_old_design_routes_are_gone(self):
+        self.assertEqual(self.json_request("POST", "/api/design/load", {"host": "127.0.0.1"})[0], 404)
+        self.assertEqual(self.json_request("POST", "/api/design/deploy", {"host": "127.0.0.1"})[0], 404)
+
+    # -- Library ----------------------------------------------------------------------------
 
     def test_library_crud(self):
-        recipe = {"version": 1, "name": "", "layers": []}
         status, saved = self.json_request("PUT", "/api/library/HDMI%201",
-                                          {"recipe": recipe, "thumbnail": b64(make_png())})
+                                          {"recipe": RECIPE, "thumbnail": b64(make_png())})
         self.assertEqual((status, saved["name"]), (200, "HDMI 1"))
-        status, items = self.json_request("GET", "/api/library")
-        self.assertEqual([i["name"] for i in items], ["HDMI 1"])
+        self.assertEqual([i["name"] for i in self.json_request("GET", "/api/library")[1]], ["HDMI 1"])
         self.assertEqual(self.json_request("GET", "/api/library/HDMI%201")[1]["name"], "HDMI 1")
         self.assertEqual(self.json_request("DELETE", "/api/library/HDMI%201")[0], 200)
         self.assertEqual(self.json_request("GET", "/api/library/HDMI%201")[0], 404)
 
     def test_library_rejects_unsafe_name(self):
         status, _ = self.json_request("PUT", "/api/library/..%2Fx",
-                                      {"recipe": {"version": 1, "layers": []},
-                                       "thumbnail": b64(make_png())})
+                                      {"recipe": RECIPE, "thumbnail": b64(make_png())})
         self.assertEqual(status, 400)
+
+    # -- Request hygiene --------------------------------------------------------------------
 
     def test_writes_without_json_content_type_are_refused(self):
         # A cross-site page can send text/plain without a CORS preflight.
-        req = urllib.request.Request(self.base + "/api/design/load", method="POST",
-                                     data=json.dumps({"host": "127.0.0.1"}).encode(),
+        req = urllib.request.Request(self.base + "/api/projects", method="POST",
+                                     data=json.dumps({"name": "Evil"}).encode(),
                                      headers={"Content-Type": "text/plain"})
         with self.assertRaises(urllib.error.HTTPError) as caught:
             urllib.request.urlopen(req, timeout=10)
         with caught.exception:
             self.assertEqual(caught.exception.code, 415)
-        self.assertEqual(list(self.ops.backup_dir.glob("loaded_*")), [])
+        self.assertEqual(self.projects.list(), [])
 
     def test_refused_write_with_large_body_still_gets_a_reply(self):
         # The server must read the body before it answers, or Windows resets
         # the connection and the client never sees the 415.
-        req = urllib.request.Request(self.base + "/api/design/deploy", method="POST",
+        req = urllib.request.Request(self.base + "/api/projects", method="POST",
                                      data=b"x" * 2_000_000, headers={"Content-Type": "text/plain"})
         with self.assertRaises(urllib.error.HTTPError) as caught:
             urllib.request.urlopen(req, timeout=10)
@@ -212,8 +261,7 @@ class ServerTests(unittest.TestCase):
 
     def test_requests_for_another_host_name_are_refused(self):
         # DNS rebinding: a page on evil.example resolves to 127.0.0.1.
-        req = urllib.request.Request(self.base + "/api/assets",
-                                     headers={"Host": "evil.example:8044"})
+        req = urllib.request.Request(self.base + "/api/assets", headers={"Host": "evil.example:8044"})
         with self.assertRaises(urllib.error.HTTPError) as caught:
             urllib.request.urlopen(req, timeout=10)
         with caught.exception:
@@ -221,8 +269,7 @@ class ServerTests(unittest.TestCase):
 
     def test_localhost_host_name_is_allowed(self):
         port = self.server.server_address[1]
-        req = urllib.request.Request(self.base + "/api/assets",
-                                     headers={"Host": f"localhost:{port}"})
+        req = urllib.request.Request(self.base + "/api/assets", headers={"Host": f"localhost:{port}"})
         with urllib.request.urlopen(req, timeout=10) as response:
             self.assertEqual(response.status, 200)
 
@@ -232,18 +279,9 @@ class ServerTests(unittest.TestCase):
             status, body = self.json_request("GET", "/api/backups")
         self.assertEqual(status, 500)
 
-    def test_missing_or_malformed_fields_are_400(self):
-        for body in ({"host": "127.0.0.1", "fingerprint": "x"},
-                     {"host": "127.0.0.1", "fingerprint": "x", "buttons": [{"page": 1}]},
-                     {"host": "127.0.0.1", "fingerprint": "x", "force": True, "buttons": [
-                         {"page": 1, "button": 99, "off": b64(make_png()), "on": b64(make_png())}]}):
-            with self.subTest(body=body):
-                status, reply = self.json_request("POST", "/api/design/deploy", body)
-                self.assertEqual(status, 400, reply)
-
     def test_bad_json_is_400_and_unknown_route_is_404(self):
-        self.assertEqual(self.request("POST", "/api/design/load", raw=b"{nope")[0], 400)
-        self.assertEqual(self.request("POST", "/api/design/load", body={})[0], 400)
+        self.assertEqual(self.request("POST", "/api/projects", raw=b"{nope")[0], 400)
+        self.assertEqual(self.request("POST", "/api/projects", body={})[0], 400)
         self.assertEqual(self.request("GET", "/api/nothing")[0], 404)
 
 

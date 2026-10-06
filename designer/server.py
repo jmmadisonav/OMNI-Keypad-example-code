@@ -31,6 +31,8 @@ from designer.assets import GraphicsZip  # noqa: E402
 from designer.keypad_ops import (BusyError, ButtonImages, ConflictError,  # noqa: E402
                                  DeployFailed, DeployTimeout, KeypadOps, Layout)
 from designer.library import Library  # noqa: E402
+from designer.projects import ProjectStore, project_name_for  # noqa: E402
+from keypad_design import Design  # noqa: E402
 
 MAX_BODY = 32 * 1024 * 1024
 STATIC_DIRS = {"static": HERE / "static", "vendor": HERE / "vendor"}
@@ -50,11 +52,11 @@ class HttpError(Exception):
 
 
 def make_server(port: int, ops: KeypadOps, library: Library, graphics: GraphicsZip,
-                discover=hcontrol_discover) -> ThreadingHTTPServer:
+                projects: ProjectStore, discover=hcontrol_discover) -> ThreadingHTTPServer:
     class Handler(_Handler):
         pass
-    Handler.ops, Handler.library, Handler.graphics, Handler.discover = (
-        ops, library, graphics, staticmethod(discover))
+    Handler.ops, Handler.library, Handler.graphics, Handler.projects, Handler.discover = (
+        ops, library, graphics, projects, staticmethod(discover))
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     server.daemon_threads = True
     return server
@@ -64,6 +66,7 @@ class _Handler(BaseHTTPRequestHandler):
     ops: KeypadOps
     library: Library
     graphics: GraphicsZip
+    projects: ProjectStore
 
     def do_GET(self):
         self._handle("GET")
@@ -101,6 +104,8 @@ class _Handler(BaseHTTPRequestHandler):
             self._json({"error": str(error), "backup": error.backup}, 502)
         except TimeoutError as error:
             self._json({"error": str(error)}, 504)
+        except FileExistsError as error:
+            self._json({"error": str(error)}, 409)
         except FileNotFoundError as error:
             self._json({"error": str(error)}, 404)
         except ValueError as error:
@@ -151,23 +156,43 @@ class _Handler(BaseHTTPRequestHandler):
                                for d in found])
         if route == ("GET", "backups"):
             return self._json(self.ops.backups())
-        if route == ("POST", "design", "load"):
-            body = self._body()
-            return self._json(self.ops.load(self._host_from(body)))
-        if route == ("POST", "design", "deploy"):
-            body = self._body()
-            host = self._host_from(body)
-            items = _field(body, "buttons", list)
-            buttons = [ButtonImages.from_json(item) for item in items]
-            layout = (Layout.from_json(_field(body, "layout", dict))
-                      if body.get("layout") is not None else None)
-            if not buttons and layout is None:
-                raise ValueError("there are no changes to deploy")
-            return self._json(self.ops.deploy(host, _field(body, "fingerprint", str), buttons,
-                                              force=bool(body.get("force")), layout=layout))
         if route == ("POST", "design", "restore"):
             body = self._body()
             return self._json(self.ops.restore(self._host_from(body), _field(body, "backup", str)))
+        if route == ("GET", "projects"):
+            return self._json(self.projects.list())
+        if route == ("POST", "projects"):
+            body = self._body()
+            return self._json(self.projects.new(_field(body, "name", str).strip()))
+        if route == ("POST", "projects", "from-keypad"):
+            body = self._body()
+            host = self._host_from(body)
+            data = self.ops.download(host)
+            name = self.projects.unique_name(project_name_for(host))
+            return self._json(self.projects.import_design(name, data, Design.from_cpio(data).fingerprint))
+        if len(route) == 3 and route[1] == "projects":
+            name = route[2]
+            if method == "GET":
+                return self._json(self.projects.open(name))
+            if method == "PUT":
+                body = self._body()
+                buttons = [ButtonImages.from_json(item) for item in _field(body, "buttons", list)]
+                layout = (Layout.from_json(_field(body, "layout", dict))
+                          if body.get("layout") is not None else None)
+                return self._json(self.projects.save(name, buttons, layout,
+                                                     _field(body, "recipes", dict)))
+        if len(route) == 4 and route[1] == "projects" and method == "POST":
+            name, action = route[2], route[3]
+            body = self._body()
+            if action == "copy":
+                return self._json(self.projects.copy(name, _field(body, "to", str).strip()))
+            if action == "deploy":
+                host = self._host_from(body)
+                design = self.projects.design(name)
+                result = self.ops.deploy_project(host, design, self.projects.base_fingerprint(name),
+                                                 force=bool(body.get("force")))
+                self.projects.set_base(name, result["fingerprint"])
+                return self._json(result)
         if route == ("GET", "library"):
             return self._json(self.library.list())
         if len(route) == 3 and route[1] == "library":
@@ -254,7 +279,7 @@ def main() -> None:
     args = parser.parse_args()
     try:
         server = make_server(args.port, KeypadOps(HERE / "backups"), Library(HERE / "library"),
-                             GraphicsZip())
+                             GraphicsZip(), ProjectStore(HERE / "projects"))
     except OSError as error:
         sys.exit(f"Couldn't listen on port {args.port}: {error}. Try --port with another number.")
     url = f"http://127.0.0.1:{server.server_address[1]}/"
