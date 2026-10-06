@@ -49,11 +49,15 @@ class ButtonImages:
 
     @classmethod
     def from_json(cls, item: dict) -> ButtonImages:
-        page, button = int(item["page"]), int(item["button"])
+        try:
+            page, button = int(item["page"]), int(item["button"])
+        except (KeyError, TypeError, ValueError):
+            raise ValueError("each button needs whole-number \"page\" and \"button\" "
+                             "fields") from None
         images = {}
         for state in ("off", "on"):
             try:
-                data = base64.b64decode(item[state], validate=True)
+                data = base64.b64decode(item.get(state) or "", validate=True)
                 size = png_size(data)
             except (binascii.Error, ValueError, TypeError):
                 raise ValueError(f"page {page} button {button}: the {state.upper()} image "
@@ -119,7 +123,10 @@ class KeypadOps:
             design = Design.from_cpio(data)
             if design.fingerprint != fingerprint and not force:
                 raise ConflictError("the design on the keypad changed since you loaded it")
-            apply_buttons(design, buttons)
+            try:
+                apply_buttons(design, buttons)
+            except IndexError as error:
+                raise ValueError(str(error)) from None
             backup = self._save(data, "backup")
             try:
                 self._upload(host, design.to_cpio(), design.fingerprint)   # New fingerprint.

@@ -157,6 +157,48 @@ class ServerTests(unittest.TestCase):
                                        "thumbnail": b64(make_png())})
         self.assertEqual(status, 400)
 
+    def test_writes_without_json_content_type_are_refused(self):
+        # A cross-site page can send text/plain without a CORS preflight.
+        req = urllib.request.Request(self.base + "/api/design/load", method="POST",
+                                     data=json.dumps({"host": "127.0.0.1"}).encode(),
+                                     headers={"Content-Type": "text/plain"})
+        with self.assertRaises(urllib.error.HTTPError) as caught:
+            urllib.request.urlopen(req, timeout=10)
+        with caught.exception:
+            self.assertEqual(caught.exception.code, 415)
+        self.assertEqual(list(self.ops.backup_dir.glob("loaded_*")), [])
+
+    def test_requests_for_another_host_name_are_refused(self):
+        # DNS rebinding: a page on evil.example resolves to 127.0.0.1.
+        req = urllib.request.Request(self.base + "/api/assets",
+                                     headers={"Host": "evil.example:8044"})
+        with self.assertRaises(urllib.error.HTTPError) as caught:
+            urllib.request.urlopen(req, timeout=10)
+        with caught.exception:
+            self.assertEqual(caught.exception.code, 403)
+
+    def test_localhost_host_name_is_allowed(self):
+        port = self.server.server_address[1]
+        req = urllib.request.Request(self.base + "/api/assets",
+                                     headers={"Host": f"localhost:{port}"})
+        with urllib.request.urlopen(req, timeout=10) as response:
+            self.assertEqual(response.status, 200)
+
+    def test_programming_errors_are_500_not_400(self):
+        with mock.patch.object(self.ops, "backups", side_effect=TypeError("bug")), \
+                mock.patch("traceback.print_exc"):
+            status, body = self.json_request("GET", "/api/backups")
+        self.assertEqual(status, 500)
+
+    def test_missing_or_malformed_fields_are_400(self):
+        for body in ({"host": "127.0.0.1", "fingerprint": "x"},
+                     {"host": "127.0.0.1", "fingerprint": "x", "buttons": [{"page": 1}]},
+                     {"host": "127.0.0.1", "fingerprint": "x", "force": True, "buttons": [
+                         {"page": 1, "button": 99, "off": b64(make_png()), "on": b64(make_png())}]}):
+            with self.subTest(body=body):
+                status, reply = self.json_request("POST", "/api/design/deploy", body)
+                self.assertEqual(status, 400, reply)
+
     def test_bad_json_is_400_and_unknown_route_is_404(self):
         self.assertEqual(self.request("POST", "/api/design/load", raw=b"{nope")[0], 400)
         self.assertEqual(self.request("POST", "/api/design/load", body={})[0], 400)

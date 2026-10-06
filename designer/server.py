@@ -85,6 +85,7 @@ class _Handler(BaseHTTPRequestHandler):
     def _handle(self, method: str) -> None:
         path = urllib.parse.urlsplit(self.path).path
         try:
+            self._check_origin(method)
             self._route(method, path)
         except HttpError as error:
             self._json({"error": str(error), **error.extra}, error.status)
@@ -98,14 +99,30 @@ class _Handler(BaseHTTPRequestHandler):
             self._json({"error": str(error)}, 504)
         except FileNotFoundError as error:
             self._json({"error": str(error)}, 404)
-        except (ValueError, IndexError, KeyError, TypeError) as error:
-            self._json({"error": str(error).strip("'\"")}, 400)
+        except ValueError as error:
+            self._json({"error": str(error)}, 400)
         except (OSError, HControlError) as error:
             host = getattr(self, "_host", "the keypad")
             self._json({"error": f"couldn't talk to the keypad at {host}: {error}"}, 502)
         except Exception as error:              # Show the traceback in the console.
             traceback.print_exc()
             self._json({"error": f"unexpected error: {error}"}, 500)
+
+    def _check_origin(self, method: str) -> None:
+        """Refuse requests that other web pages in your browser could make.
+
+        A page on another site can send a "simple" text/plain POST to
+        127.0.0.1 without asking first, and a DNS-rebinding page reaches the
+        server under its own host name. Requiring JSON forces a CORS
+        preflight, which this server never approves.
+        """
+        port = self.server.server_address[1]
+        if self.headers.get("Host", "") not in (f"127.0.0.1:{port}", f"localhost:{port}"):
+            raise HttpError(403, "open the designer at http://127.0.0.1:"
+                                 f"{port}/ to use it")
+        content_type = self.headers.get("Content-Type", "").split(";")[0].strip().lower()
+        if method in ("POST", "PUT", "DELETE") and content_type != "application/json":
+            raise HttpError(415, "requests must be sent as application/json")
 
     def _route(self, method: str, path: str) -> None:
         parts = [urllib.parse.unquote(p) for p in path.split("/") if p]
@@ -136,14 +153,15 @@ class _Handler(BaseHTTPRequestHandler):
         if route == ("POST", "design", "deploy"):
             body = self._body()
             host = self._host_from(body)
-            buttons = [ButtonImages.from_json(item) for item in body["buttons"]]
+            items = _field(body, "buttons", list)
+            buttons = [ButtonImages.from_json(item) for item in items]
             if not buttons:
                 raise ValueError("there are no changed buttons to deploy")
-            return self._json(self.ops.deploy(host, str(body["fingerprint"]), buttons,
+            return self._json(self.ops.deploy(host, _field(body, "fingerprint", str), buttons,
                                               force=bool(body.get("force"))))
         if route == ("POST", "design", "restore"):
             body = self._body()
-            return self._json(self.ops.restore(self._host_from(body), str(body["backup"])))
+            return self._json(self.ops.restore(self._host_from(body), _field(body, "backup", str)))
         if route == ("GET", "library"):
             return self._json(self.library.list())
         if len(route) == 3 and route[1] == "library":
@@ -153,10 +171,10 @@ class _Handler(BaseHTTPRequestHandler):
             if method == "PUT":
                 body = self._body()
                 try:
-                    thumbnail = base64.b64decode(body["thumbnail"], validate=True)
+                    thumbnail = base64.b64decode(_field(body, "thumbnail", str), validate=True)
                 except binascii.Error:
                     raise ValueError("the thumbnail isn't valid base64") from None
-                return self._json(self.library.save(name, body["recipe"], thumbnail))
+                return self._json(self.library.save(name, _field(body, "recipe", dict), thumbnail))
             if method == "DELETE":
                 self.library.delete(name)
                 return self._json({})
@@ -203,6 +221,14 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(data)
+
+
+def _field(body: dict, key: str, kind: type):
+    """Return body[key], or raise ValueError if it's missing or the wrong type."""
+    value = body.get(key)
+    if not isinstance(value, kind):
+        raise ValueError(f"the request needs \"{key}\" ({kind.__name__})")
+    return value
 
 
 def main() -> None:
