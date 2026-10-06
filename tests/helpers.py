@@ -40,3 +40,13 @@ class KeypadTestCase(unittest.TestCase):
         redirect = contextlib.redirect_stdout(self.output)
         redirect.__enter__()
         self.addCleanup(redirect.__exit__, None, None, None)
+
+
+def make_png(width: int = 188, height: int = 188, seed: int = 0) -> bytes:
+    """Build a PNG header that png_size() accepts. Change seed to change the bytes."""
+    import struct
+    import zlib
+    ihdr = struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0)
+    chunk = struct.pack(">I", len(ihdr)) + b"IHDR" + ihdr
+    return (b"\x89PNG\r\n\x1a\n" + chunk + struct.pack(">I", zlib.crc32(b"IHDR" + ihdr))
+            + seed.to_bytes(4, "big"))
