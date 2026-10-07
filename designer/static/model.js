@@ -69,9 +69,91 @@ export function shapeFiles(catalog, set, colour) {
   return catalog.shapes[set]?.[colour] ?? null;
 }
 
-export function recipeFromImages(off, on, name = "") {
+// source says where finished artwork came from: { kind: "keypad" } for a
+// button loaded from a keypad, or { kind: "library", name } for ready-made art.
+export function recipeFromImages(off, on, name = "", source = undefined) {
+  const layer = { type: "image", off, on, size: SIZE, x: CENTRE, y: CENTRE, visible: true };
+  if (source) layer.source = source;
+  return { ...newRecipe(name), layers: [layer] };
+}
+
+// A Squared shape, an icon, and a label: the Quick button shortcut.
+export function quickRecipe({ label, icon, colour }, name = "") {
   return { ...newRecipe(name), layers: [
-    { type: "image", off, on, size: SIZE, x: CENTRE, y: CENTRE, visible: true }] };
+    { type: "shape", set: "Squared", colour, visible: true },
+    { type: "icon", icon, size: 72, x: CENTRE, y: 80, stroke: 2,
+      colour: { off: ON_WHITE, on: ON_WHITE }, visible: true },
+    { type: "text", lines: [label || "Label"], font: FONTS[0], weight: 700, size: 20,
+      x: CENTRE, y: 150, align: "center", colour: { off: ON_WHITE, on: ON_WHITE }, visible: true },
+  ] };
+}
+
+export function isBlank(recipe) {
+  return !recipe.layers.some((l) => l.visible && (l.type !== "image" || l.off || l.on));
+}
+
+// A custom shape colour recolours one of the set's grey artworks. The grey
+// sits at one brightness (base) with a lighter highlight and darker edges:
+// base becomes the tint, highlights move part of the way to white, and edges
+// darken in proportion, so the shape keeps its shading. Alpha is unchanged.
+// Grey has crisp edges; White's are a soft glow, so it's the last choice.
+const TINT_SOURCES = ["Grey", "LtGrey", "DkGrey", "White"];
+const HIGHLIGHT = 0.6;
+
+// The OFF and ON files to recolour for a shape set, or null if it has no grey.
+export function tintSource(catalog, set) {
+  const colour = TINT_SOURCES.find((c) => catalog.shapes[set]?.[c]);
+  return colour ? catalog.shapes[set][colour] : null;
+}
+
+export function tintPixels(data, base, hex) {
+  const n = parseInt(hex.slice(1), 16);
+  const rgb = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  for (let i = 0; i < data.length; i += 4) {
+    const light = (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]) / 255;
+    for (let c = 0; c < 3; c++) {
+      data[i + c] = light >= base
+        ? rgb[c] + (255 - rgb[c]) * ((light - base) / (1 - base || 1)) * HIGHLIGHT
+        : rgb[c] * (light / base);
+    }
+  }
+  return data;
+}
+
+export function layerSummary(layer) {
+  switch (layer.type) {
+    case "shape": return `${layer.set} · ${layer.tint ? "Custom" : layer.colour}`;
+    case "icon": return layer.icon;
+    case "text": return `"${layer.lines.filter(Boolean).join(" / ")}"`;
+    case "image":
+      if (!layer.off && !layer.on) return "No image";
+      if (layer.source?.kind === "keypad") return "Loaded from keypad";
+      if (layer.source?.kind === "library") return layer.source.name;
+      return layer.offFile || layer.onFile || "Uploaded image";
+  }
+  return "";
+}
+
+export function clampPosition(value) {
+  return Math.max(0, Math.min(SIZE, Math.round(value)));
+}
+
+// The image file name stem the server uses for a button (keypad_ops.file_base).
+export function fileStem(name, page, button) {
+  return name ? name.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 64) : `p${page}b${button}`;
+}
+
+// The rule in library.validate_name, except that a button may have no name.
+const NAME = /^[A-Za-z0-9_-](?:[A-Za-z0-9 _-]{0,62}[A-Za-z0-9_-])?$/;
+
+export function buttonNameError(name) {
+  if (!name || NAME.test(name)) return "";
+  return "Use 1 to 64 letters, digits, spaces, dashes or underscores, with no space at either end.";
+}
+
+// "HDMI_1_OFF_0a1b2c.png" -> "HDMI_1": the name a button's images were saved under.
+export function nameFromImage(file) {
+  return file.replace(/\.png$/i, "").replace(/_(OFF|ON)(_[0-9a-f]{6})?$/, "");
 }
 
 export function searchIcons(tags, query, limit = 60) {

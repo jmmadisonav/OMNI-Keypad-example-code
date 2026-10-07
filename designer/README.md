@@ -35,27 +35,44 @@ port, add `--port 8050`. To stop it, press Ctrl+C.
 1. The designer opens your most recent project, or a new project called
    "Untitled" the first time. To start another, click **New**, and choose its
    name and keypad model. To work on a keypad's current design, enter its IP
-   address, or click **Find**, and click **Load from keypad**. That saves the
-   design as a new project named after the keypad, for example
-   `172-17-0-55 2026-10-06`.
-1. Click a button on the keypad view. The editor shows its layers, or its
-   current images if it wasn't designed in the designer.
-1. Add layers with **Shape**, **Icon**, **Text**, and **Image**. To move a
-   layer, drag it on either canvas or change **X** and **Y**. To check the ON
-   images on every button, select **Show ON state**.
-1. Repeat for other buttons and pages. A dot marks each changed button, and a
-   dot next to the project name means there are unsaved changes.
+   address, or click **Find**, and click **Load**. That saves the design as a
+   new project named after the keypad, for example `172-17-0-55 2026-10-06`.
+1. Click a key on the keypad view. The **Button** tab shows its OFF and ON
+   canvases and its layers. A button that wasn't made in the designer opens
+   as one Image layer that holds its existing artwork.
+1. Add layers with **+ Shape**, **+ Icon**, **+ Text**, and **+ Image**, or
+   click **Quick button** to build a shape, an icon, and a label in one step.
+   To move a layer, drag it on either canvas or change **X** and **Y**. To
+   check the ON images on every key, click **ON** under the keypad view.
+
+   A shape uses a colour from Keypad Graphics. To use your own OFF and ON
+   colours instead, click **+** after the colour swatches. The designer
+   recolours the set's grey artwork, so the shape keeps its shading.
+1. Repeat for other keys and pages. A red square marks each changed key, and
+   one next to the project name means there are unsaved changes.
 1. Click **Save**. You don't need a keypad for any of these steps.
 1. To put the project on a keypad, enter its IP address and click **Deploy**.
    The designer saves first if needed. The keypad restarts with the project
    in about 20 seconds.
 
+To undo a change, press Ctrl+Z. To redo it, press Ctrl+Y or Ctrl+Shift+Z. You
+can undo every change since you last saved or opened the project. In a text
+field, Ctrl+Z undoes your typing in that field instead.
+
+To swap two keys, drag one onto the other. The artwork, the button name, and
+the page link move. The control settings, such as the HControl path, stay with
+each slot.
+
+### Backups
+
 Every deploy saves the design that was running as
-`designer/backups/backup_<date>_<time>.cpio`, and every **Load from keypad**
-saves a copy as `loaded_<date>_<time>.cpio`. If a deploy fails, the designer
-selects the backup it made. To put a design back, choose it in the list next to
-**Restore backup**, and click **Restore backup**. Restoring works even when
-the keypad has no design loaded.
+`designer/backups/backup_<date>_<time>.cpio`, every **Load** saves a copy as
+`loaded_<date>_<time>.cpio`, and **Back up keypad now** in **Backups** saves
+`manual_<date>_<time>.cpio`. If a deploy fails after its backup, the designer
+offers to restore that backup.
+
+To put a design back, click **Backups**, choose a backup, and click
+**Restore**. Restoring works even when the keypad has no design loaded.
 
 A keypad with no design, for example after a factory reset, doesn't need a
 backup: **Deploy** checks for a design for about 15 seconds, then uploads the
@@ -66,15 +83,17 @@ from or deployed to, the designer asks before it replaces it.
 
 ## Add pages and switch between them
 
-The page tabs above the keypad view show the design's pages. To change them,
-use the buttons next to the tabs:
+The page tabs above the keypad view show the design's pages. To change the
+pages, use the tabs:
 
-- To add a page, click **+**. A new page has page 1's dial and LED ring
+- To add a page, click **+ Page**. A new page has page 1's dial and LED ring
   settings and no button images. A design can have up to 9 pages.
-- To rename the current page, click **Rename**. Buttons that switch to the
-  page keep switching to it.
-- To delete the current page, click **Delete**. Buttons that switch to it
-  stop switching pages.
+- To rename a page, double-click its tab. Page names must be unique. Buttons
+  that switch to the page keep switching to it.
+- To delete the current page, click **×** on its tab. Buttons that switch to
+  it stop switching pages.
+
+To show another page while you drag a key, drag it over that page's tab.
 
 To make a button switch pages, select the button, and then choose a page in
 **Go to page**. The keypad switches pages by itself, without any app running.
@@ -98,8 +117,12 @@ The designer supports these OMNI keypads:
 | OMNI-KP-8BV | 8, in 4 columns and 2 rows | Yes |
 
 Each project is for one model. To choose it, click **New** and pick the
-model. **Load from keypad** uses the model the keypad reports. You can't
-change a project's model later.
+model. **Load** uses the model the keypad reports. You can't change a
+project's model later. The model appears next to the project name.
+
+If a project's model file is missing, the designer shows an error. You can
+still edit the project, but you can't deploy it until you put the model file
+back.
 
 The 6B and 6BV are marked "untested": their templates follow AVX
 Architect's 6B and 6BV designs, but haven't been deployed to a real unit
@@ -120,9 +143,9 @@ Each project is a folder in `designer/projects/`:
 |---|---|
 | `keypad.json` | The design, in the same format as the repo's `design/` folder |
 | `images/` | The button images the design uses |
-| `designer.json` | Each button's layers, and which keypad design the project last matched |
+| `designer.json` | Each button's layers, which keypad design the project last matched, and when it was last deployed |
 
-To open a project, choose it in **Open…**. To keep a copy under another name,
+To open a project, choose it in **Open**. To keep a copy under another name,
 click **Save as**. To delete a project, delete its folder.
 
 Because a project folder is a complete design, you can also deploy it from
@@ -133,12 +156,34 @@ the command line, for example
 
 To keep a button's layers so you can change them later, click **Save to
 library** and give it a name. Recipes are saved in `designer/library/`. To use
-a recipe on another button, select the button and click the recipe.
+a recipe, open the **Library** tab, and then click the recipe to apply it to
+the selected key, or drag it onto any key. Applying a recipe replaces the
+key's layers and name, and keeps its page link.
 
 The recipe name also names the image files on the keypad, for example
-`HDMI_1_OFF.png`. Buttons that use the same recipe share the same files.
+`HDMI_1_OFF.png`. Buttons that use the same recipe share the same files. To
+change the file names for one button, edit its **Button name**.
 
 **Ready-made** shows the finished buttons in `Keypad Graphics.zip`.
+
+## Program the keypad from your own code
+
+The **HControl** drawer under the keypad view shows the strings your own code
+sends to the keypad and the replies to expect. To see them for a key, select
+the key. The strings cover that key's page and button numbers: subscribing to
+presses, getting and setting the feedback state, and enabling or disabling the
+button. A key with a page link also shows how to follow page changes, and
+models with a dial show the dial and LED ring paths. The **Notes** pane
+explains the protocol rules.
+
+- To copy one line, point to it and click the copy button.
+- To copy every line, click **Copy all**. Each line starts with `->` for a
+  line you send or `<-` for one you receive.
+- To resize the drawer, drag its top edge. To hide or show it, click
+  **HControl**.
+
+If you've added or deleted pages since you last saved, the drawer warns you
+that the page numbers can change when you save and deploy.
 
 ## Run the tests
 
@@ -151,10 +196,10 @@ To run the JavaScript tests, you need Node.js 18 or later. Run
 
 To check the designer against a keypad, do the following:
 
-1. Load the design with **Load from keypad**, and check that the keypad view matches the keypad's
+1. Load the design with **Load**, and check that the keypad view matches the keypad's
    screen: the same images in the same positions, on the same page.
 1. Edit button 1 with a shape, an icon, and text, and button 2 with an image.
 1. Deploy, and check both buttons on the keypad in both states. To switch a
    button to ON, run `python 01_buttons_dial_feedback.py` and press it.
-1. Click **Load from keypad** again, and check that the designer shows the deployed images.
-1. Restore the backup, and check that the keypad shows the original design.
+1. Click **Load** again, and check that the designer shows the deployed images.
+1. In **Backups**, restore the backup, and check that the keypad shows the original design.

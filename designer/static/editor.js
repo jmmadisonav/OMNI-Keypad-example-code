@@ -1,202 +1,447 @@
-// The centre pane: OFF and ON canvases, the layer list, and the selected
-// layer's settings.
+// The layer editor in the BUTTON tab: the OFF and ON canvases, Add layer and
+// Quick button, the layer list, and the selected layer's settings.
 
 import {
-  SIZE, CENTRE, MAX_IMPORT, FONTS, defaultLayer, addLayer, updateLayer, removeLayer,
-  moveLayer, searchIcons, fitWithin,
+  SIZE, MAX_IMPORT, FONTS, defaultLayer, addLayer, updateLayer, removeLayer,
+  moveLayer, searchIcons, fitWithin, quickRecipe, layerSummary, clampPosition, tintSource,
 } from "./model.js";
 import { paintInto, loadIcons } from "./render.js";
+import { assetUrl } from "./api.js";
 
-const SCALE = 2;    // Canvases are shown at 2x.
+const ICON_LIMIT = 64;
+const QUICK_LIMIT = 16;
+// Common AV icons, shown before you search.
+const POPULAR = ["house", "laptop", "monitor", "tv", "projector", "presentation", "volume-2",
+  "volume-x", "mic", "mic-off", "bluetooth", "cast", "cable", "wifi", "power", "sun", "moon",
+  "lightbulb", "play", "pause", "square", "skip-forward", "skip-back", "chevron-left",
+  "chevron-right", "chevron-up", "chevron-down", "settings", "video", "camera", "phone",
+  "speaker", "music", "radio", "blinds", "thermometer", "network", "grip", "ban", "activity",
+  "audio-lines", "square-play", "star", "users"];
+const SIZES = { icon: [12, SIZE, "px"], text: [8, 80, "px"], image: [10, 200, "%"] };
+const TYPE_GLYPHS = { shape: "square", icon: "shapes", text: "type", image: "image" };
+const DEFAULT_TINT = { off: "#9e1328", on: "#e31837" };    // MGE red, darker when OFF.
+const ALIGN_ICONS = { left: "text-align-start", center: "text-align-center", right: "text-align-end" };
 
-export function createEditor({ root, catalog, iconTags, onChange }) {
+export function icon(name, size = 16) {
+  return `<svg class="i" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="/vendor/lucide/sprite.svg#${name}"/></svg>`;
+}
+
+const escapeHtml = (text) => String(text).replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[c]);
+const cap = (text) => text[0].toUpperCase() + text.slice(1);
+const pct = (value) => `${(value / SIZE) * 100}%`;
+const isHex = (value) => /^#[0-9a-f]{6}$/i.test(value);
+
+export function createEditor({ root, catalog, iconTags, onChange, onPreview, onChooseLibrary, onStatus }) {
   let recipe = null;
   let selected = -1;
+  let showOn = false;
+  let iconQuery = "";
+  const quick = { open: false, label: "", icon: "house", colour: "", query: "" };
+  const imageSizes = new Map();      // src -> { width, height }, for the selection box.
+  const squaredColours = Object.keys(catalog.shapes.Squared || {});
+  quick.colour = squaredColours.includes("Blue") ? "Blue" : squaredColours[0] || "";
 
   root.innerHTML = `
-    <div class="editor-canvases">
-      <figure><canvas class="editor-canvas" data-state="off" width="${SIZE}" height="${SIZE}"></canvas><figcaption>OFF</figcaption></figure>
-      <figure><canvas class="editor-canvas" data-state="on" width="${SIZE}" height="${SIZE}"></canvas><figcaption>ON</figcaption></figure>
+    <div class="canvases">
+      ${["off", "on"].map((state) => `
+        <div class="canvas-card">
+          <div class="canvas-head"><span>${state.toUpperCase()}</span>
+            <button type="button" class="link-quiet" data-preview="${state}"></button></div>
+          <div class="canvas-wrap" data-state="${state}">
+            <canvas class="editor-canvas" width="${SIZE}" height="${SIZE}" aria-label="${state.toUpperCase()} image"></canvas>
+            <div class="layer-box" hidden></div>
+          </div>
+        </div>`).join("")}
     </div>
-    <div class="layer-toolbar">
-      Add:
-      <button type="button" data-add="shape">Shape</button>
-      <button type="button" data-add="icon">Icon</button>
-      <button type="button" data-add="text">Text</button>
-      <button type="button" data-add="image">Image</button>
+    <p class="help pad-x">188 × 188 px. Drag on either canvas to move the selected layer.</p>
+    <div class="block">
+      <div class="row-between"><span class="label">Add layer</span>
+        <button type="button" class="link-red" data-quick></button></div>
+      <div class="add-grid">
+        ${["shape", "icon", "text", "image"].map((type) =>
+          `<button type="button" class="btn-outline" data-add="${type}">+ ${type}</button>`).join("")}
+      </div>
     </div>
-    <ul class="layer-list"></ul>
-    <form class="layer-form" autocomplete="off"></form>
-    <p class="editor-status" role="status"></p>`;
+    <div class="quick" hidden></div>
+    <div class="block">
+      <span class="label">Layers · top first</span>
+      <div class="blank-note" hidden>
+        <span>Blank button. It shows nothing on the keypad. Add a layer, use Quick button, or start from the library.</span>
+        <button type="button" class="btn-dark small" data-library>Choose from library</button>
+      </div>
+      <ul class="layer-list"></ul>
+    </div>
+    <form class="settings" autocomplete="off" hidden></form>`;
+
   const canvases = {
-    off: root.querySelector('[data-state="off"]'),
-    on: root.querySelector('[data-state="on"]'),
+    off: root.querySelector('[data-state="off"] canvas'),
+    on: root.querySelector('[data-state="on"] canvas'),
   };
   const list = root.querySelector(".layer-list");
-  const form = root.querySelector(".layer-form");
-  const status = root.querySelector(".editor-status");
+  const form = root.querySelector(".settings");
+  const quickPanel = root.querySelector(".quick");
+  const blankNote = root.querySelector(".blank-note");
 
-  function setStatus(text) {
-    status.textContent = text;
-  }
+  // -- Painting and the selection box ----------------------------------------------
 
   function paint() {
-    if (!recipe) {
-      for (const c of Object.values(canvases)) c.getContext("2d").clearRect(0, 0, SIZE, SIZE);
-      return;
+    for (const state of ["off", "on"]) {
+      if (recipe) paintInto(canvases[state], recipe, state, catalog);
+      else canvases[state].getContext("2d").clearRect(0, 0, SIZE, SIZE);
     }
-    paintInto(canvases.off, recipe, "off", catalog);
-    paintInto(canvases.on, recipe, "on", catalog);
+    drawBox();
   }
 
-  function change(next, { rebuildForm = false } = {}) {
+  function textBounds(layer) {
+    const ctx = canvases.off.getContext("2d");
+    ctx.save();
+    ctx.font = `${layer.weight} ${layer.size}px "${layer.font}"`;
+    const lines = layer.lines.filter((l, i) => i < 2);
+    const width = Math.max(1, ...lines.map((l) => ctx.measureText(l).width));
+    ctx.restore();
+    const height = Math.max(1, lines.length) * layer.size * 1.15;
+    const left = layer.align === "center" ? layer.x - width / 2
+      : layer.align === "left" ? layer.x : layer.x - width;
+    return [left, layer.y - height / 2, width, height];
+  }
+
+  function imageBounds(layer) {
+    const src = layer.off || layer.on;
+    if (!src) return null;
+    if (!imageSizes.has(src)) {
+      imageSizes.set(src, { width: 1, height: 1 });
+      const img = new Image();
+      img.onload = () => { imageSizes.set(src, { width: img.naturalWidth, height: img.naturalHeight }); drawBox(); };
+      img.src = src;
+    }
+    const { width, height } = imageSizes.get(src);
+    const scale = layer.size / Math.max(width, height);
+    return [layer.x - (width * scale) / 2, layer.y - (height * scale) / 2, width * scale, height * scale];
+  }
+
+  function bounds(layer) {
+    if (!layer || !layer.visible || layer.type === "shape") return null;
+    if (layer.type === "icon") return [layer.x - layer.size / 2, layer.y - layer.size / 2, layer.size, layer.size];
+    if (layer.type === "text") return textBounds(layer);
+    return imageBounds(layer);
+  }
+
+  function drawBox() {
+    const box = bounds(recipe?.layers[selected]);
+    for (const wrap of root.querySelectorAll(".canvas-wrap")) {
+      const el = wrap.querySelector(".layer-box");
+      el.hidden = !box;
+      wrap.classList.toggle("movable", Boolean(box));
+      if (box) Object.assign(el.style, { left: pct(box[0]), top: pct(box[1]), width: pct(box[2]), height: pct(box[3]) });
+    }
+  }
+
+  function renderPreviewLinks() {
+    for (const state of ["off", "on"]) {
+      const current = showOn === (state === "on");
+      root.querySelector(`[data-preview="${state}"]`).textContent = current ? "On keypad" : "Show on keypad";
+      root.querySelector(`[data-preview="${state}"]`).classList.toggle("current", current);
+      root.querySelector(`[data-state="${state}"]`).classList.toggle("current", current);
+    }
+  }
+
+  // -- Changes -----------------------------------------------------------------------
+
+  function change(next, { settings = false } = {}) {
     recipe = next;
     paint();
     renderList();
-    if (rebuildForm) renderForm();
+    if (settings) renderSettings();
     onChange(recipe);
   }
 
-  function describe(layer) {
-    switch (layer.type) {
-      case "shape": return `Shape: ${layer.set} ${layer.colour}`;
-      case "icon": return `Icon: ${layer.icon}`;
-      case "text": return `Text: ${layer.lines.join(" / ") || "(empty)"}`;
-      case "image": return `Image${layer.off ? "" : " (empty)"}`;
-    }
-    return layer.type;
+  const setLayer = (changes, options) => change(updateLayer(recipe, selected, changes), options);
+
+  // -- Quick button --------------------------------------------------------------------
+
+  function renderQuick() {
+    root.querySelector("[data-quick]").textContent = quick.open ? "Close quick button" : "Quick button";
+    quickPanel.hidden = !quick.open;
+    if (!quick.open) return;
+    quickPanel.innerHTML = `
+      <p class="note">Quick button builds a Shape, Icon and Text layer. It replaces this button's current layers.</p>
+      <input class="field" name="label" placeholder="Label" value="${escapeHtml(quick.label)}" aria-label="Label">
+      <input class="field" name="query" type="search" placeholder="Search icons" value="${escapeHtml(quick.query)}" aria-label="Search icons">
+      <div class="icon-grid quick-icons" role="listbox" aria-label="Icons"></div>
+      <div class="swatch-row">${squaredColours.map((name) => swatch("Squared", name, name === quick.colour)).join("")}</div>
+      <button type="button" class="btn-dark" data-generate>Generate layers</button>`;
+    renderQuickIcons();
   }
+
+  function renderQuickIcons() {
+    const grid = quickPanel.querySelector(".quick-icons");
+    grid.innerHTML = iconMatches(quick.query, QUICK_LIMIT).map((name) => iconChoice(name, name === quick.icon)).join("");
+  }
+
+  quickPanel.addEventListener("input", (event) => {
+    const input = event.target;
+    if (input.name === "label") quick.label = input.value;
+    if (input.name === "query") { quick.query = input.value; renderQuickIcons(); }
+  });
+
+  quickPanel.addEventListener("click", (event) => {
+    const button = event.target.closest("button");
+    if (!button) return;
+    if (button.dataset.icon) {
+      quick.icon = button.dataset.icon;
+      renderQuickIcons();
+    } else if (button.dataset.colour) {
+      quick.colour = button.dataset.colour;
+      renderQuick();
+    } else if (button.hasAttribute("data-generate")) {
+      const next = { ...quickRecipe(quick, recipe.name), name: recipe.name };
+      selected = 1;                               // The icon.
+      quick.open = false;
+      renderQuick();
+      change(next, { settings: true });
+      onStatus("Generated Shape, Icon and Text layers.");
+    }
+  });
+
+  // -- Layer list ----------------------------------------------------------------------
 
   function renderList() {
+    blankNote.hidden = !recipe || recipe.layers.length > 0;
+    list.hidden = !recipe || !recipe.layers.length;
     list.innerHTML = "";
     if (!recipe) return;
-    // Show the top layer first, like most editors.
-    [...recipe.layers.keys()].reverse().forEach((index) => {
+    const top = recipe.layers.length - 1;
+    for (let index = top; index >= 0; index--) {
       const layer = recipe.layers[index];
       const li = document.createElement("li");
-      li.className = "layer-item" + (index === selected ? " selected" : "") + (layer.visible ? "" : " hidden-layer");
+      li.className = "layer-row" + (index === selected ? " selected" : "") + (layer.visible ? "" : " hidden-layer");
       li.dataset.index = index;
-      li.innerHTML = `<span class="layer-name"></span>
-        <button type="button" data-act="up" title="Move up" aria-label="Move up">▲</button>
-        <button type="button" data-act="down" title="Move down" aria-label="Move down">▼</button>
-        <button type="button" data-act="hide" title="Show or hide" aria-label="Show or hide">${layer.visible ? "👁" : "–"}</button>
-        <button type="button" data-act="delete" title="Delete" aria-label="Delete">✕</button>`;
-      li.querySelector(".layer-name").textContent = describe(layer);
+      li.innerHTML = `
+        <span class="glyph">${icon(TYPE_GLYPHS[layer.type], 16)}</span>
+        <span class="layer-name">${cap(layer.type)} <span class="sub">${escapeHtml(layerSummary(layer))}</span></span>
+        <button type="button" class="icon-btn" data-act="up" title="Move up" aria-label="Move up"${index === top ? " disabled" : ""}>${icon("chevron-up", 14)}</button>
+        <button type="button" class="icon-btn" data-act="down" title="Move down" aria-label="Move down"${index === 0 ? " disabled" : ""}>${icon("chevron-down", 14)}</button>
+        <button type="button" class="icon-btn" data-act="hide" title="${layer.visible ? "Hide" : "Show"}" aria-label="${layer.visible ? "Hide" : "Show"}">${icon(layer.visible ? "eye" : "eye-off", 14)}</button>
+        <button type="button" class="icon-btn" data-act="delete" title="Delete layer" aria-label="Delete layer">${icon("trash", 14)}</button>`;
       list.append(li);
-    });
+    }
   }
 
-  // -- Settings form -------------------------------------------------------------
+  list.addEventListener("click", (event) => {
+    const item = event.target.closest(".layer-row");
+    if (!item) return;
+    const index = Number(item.dataset.index);
+    const act = event.target.closest("[data-act]")?.dataset.act;
+    if (act === "up" || act === "down") {
+      const delta = act === "up" ? 1 : -1;        // The list shows the top layer first.
+      const next = moveLayer(recipe, index, delta);
+      if (next !== recipe && selected === index) selected = index + delta;
+      else if (next !== recipe && selected === index + delta) selected = index;
+      change(next);
+    } else if (act === "hide") {
+      change(updateLayer(recipe, index, { visible: !recipe.layers[index].visible }));
+      drawBox();
+    } else if (act === "delete") {
+      if (selected === index) selected = -1;
+      else if (selected > index) selected--;
+      change(removeLayer(recipe, index), { settings: true });
+    } else if (index !== selected) {
+      selected = index;
+      iconQuery = "";
+      renderList();
+      renderSettings();
+      drawBox();
+    }
+  });
 
-  const field = (label, html) => `<label><span>${label}</span>${html}</label>`;
-  const number = (key, value, min, max, step = 1) =>
-    `<input type="number" name="${key}" value="${value}" min="${min}" max="${max}" step="${step}">`;
-  const range = (key, value, min, max, step = 1) =>
-    `<input type="range" name="${key}" value="${value}" min="${min}" max="${max}" step="${step}">`;
-  const colour = (layer) =>
-    field("OFF colour", `<input type="color" name="colour.off" value="${layer.colour.off}">`) +
-    field("ON colour", `<input type="color" name="colour.on" value="${layer.colour.on}">`);
-  const position = (layer) =>
-    field("X", number("x", layer.x, -SIZE, SIZE * 2)) +
-    field("Y", number("y", layer.y, -SIZE, SIZE * 2)) +
-    `<button type="button" data-centre>Centre</button>`;
-  const options = (values, current) =>
-    values.map((v) => `<option value="${v}"${v === current ? " selected" : ""}>${v}</option>`).join("");
+  // -- Settings ------------------------------------------------------------------------
 
-  function renderForm() {
-    form.innerHTML = "";
+  const label = (text, extra = "") => `<span class="label">${text}${extra}</span>`;
+
+  function swatch(set, colour, current) {
+    const files = catalog.shapes[set]?.[colour];
+    if (!files) return "";
+    return `<button type="button" class="swatch${current ? " current" : ""}" data-colour="${escapeHtml(colour)}" title="${escapeHtml(colour)}" aria-label="${escapeHtml(colour)}">
+      <img alt="" src="${assetUrl(files.off)}"><img alt="" src="${assetUrl(files.on)}"></button>`;
+  }
+
+  function iconChoice(name, current) {
+    return `<button type="button" class="icon-choice${current ? " current" : ""}" data-icon="${name}" title="${name}" aria-label="${name}">${icon(name, 18)}</button>`;
+  }
+
+  function iconMatches(query, limit) {
+    if (!query.trim()) return POPULAR.filter((name) => iconTags[name]).slice(0, limit);
+    return searchIcons(iconTags, query, limit);
+  }
+
+  function segmented(name, options, current) {
+    return `<div class="seg" role="group">${options.map(([value, text, glyph]) =>
+      `<button type="button" data-seg="${name}" data-value="${value}" class="${String(value) === String(current) ? "current" : ""}"${glyph ? ` title="${text}" aria-label="${text}"` : ""}>${glyph ? icon(glyph, 14) : text}</button>`).join("")}</div>`;
+  }
+
+  function sizeField(layer) {
+    const [min, max, unit] = SIZES[layer.type];
+    const value = layer.type === "image" ? Math.round((layer.size / SIZE) * 100) : layer.size;
+    return `<label class="stack">${label("Size", `<span class="value" data-size-label>${value} ${unit === "%" ? "%" : "px"}</span>`)}
+      <input type="range" name="size" min="${min}" max="${Math.max(max, value)}" step="1" value="${value}"></label>
+      <div class="pair">
+        <label class="xy"><span>X</span><input type="number" name="x" value="${layer.x}" min="0" max="${SIZE}"></label>
+        <label class="xy"><span>Y</span><input type="number" name="y" value="${layer.y}" min="0" max="${SIZE}"></label>
+      </div>`;
+  }
+
+  // OFF and ON colour pickers for layer[prop]: colour for icons and text, tint for shapes.
+  function colourFields(layer, prop = "colour") {
+    return `<div class="pair">${["off", "on"].map((state) => `
+      <div class="stack">${label(`${state.toUpperCase()} colour`)}
+        <div class="colour-field">
+          <input type="color" name="colour.${state}" value="${isHex(layer[prop][state]) ? layer[prop][state] : "#ffffff"}" aria-label="${state.toUpperCase()} colour">
+          <input class="hex" name="hex.${state}" value="${escapeHtml(layer[prop][state])}" spellcheck="false" aria-label="${state.toUpperCase()} colour hex">
+        </div></div>`).join("")}</div>`;
+  }
+
+  function imageRows(layer) {
+    const info = layer.source?.kind === "keypad"
+      ? "Loaded from the keypad. This button wasn't made in the designer, so its existing OFF and ON artwork is kept as one Image layer."
+      : layer.source?.kind === "library"
+        ? `Ready-made artwork from Keypad Graphics: ${escapeHtml(layer.source.name)}_OFF.png and _ON.png.` : "";
+    return (info ? `<div class="info">${info}</div>` : "") + ["off", "on"].map((state) => {
+      const src = layer[state];
+      const desc = src ? (layer.source ? `Existing ${state.toUpperCase()} artwork` : escapeHtml(layer[`${state}File`] || "Uploaded image"))
+        : state === "on" ? "Optional. Uses the OFF image." : "PNG or SVG";
+      return `<div class="image-row">
+        <div class="image-thumb">${src ? `<img alt="" src="${src}">` : ""}</div>
+        <div class="image-text"><span class="label-sm">${state.toUpperCase()} image</span><span class="sub">${desc}</span></div>
+        <label class="btn-outline small">${src ? "Replace" : "Upload"}<input type="file" accept="image/png,image/svg+xml" data-target="${state}" hidden></label>
+        ${src && (state === "on" || !layer.source) ? `<button type="button" class="icon-btn boxed" data-remove="${state}" title="Remove" aria-label="Remove the ${state.toUpperCase()} image">×</button>` : ""}
+      </div>`;
+    }).join("");
+  }
+
+  function renderSettings() {
     const layer = recipe?.layers[selected];
-    if (!layer) {
-      form.innerHTML = recipe ? "<p>Select a layer to change it.</p>" : "";
-      return;
-    }
+    form.hidden = !layer;
+    if (!layer) { form.innerHTML = ""; return; }
+    let body = "";
     if (layer.type === "shape") {
-      form.innerHTML =
-        field("Set", `<select name="set">${options(Object.keys(catalog.shapes), layer.set)}</select>`) +
-        field("Colour", `<select name="colour">${options(Object.keys(catalog.shapes[layer.set] || {}), layer.colour)}</select>`);
+      const sets = Object.keys(catalog.shapes);
+      const custom = Boolean(layer.tint);
+      const canTint = Boolean(tintSource(catalog, layer.set));
+      const customSwatch = canTint ? `<button type="button" class="swatch custom${custom ? " current" : ""}" data-custom
+          title="Custom colour" aria-label="Custom colour"${custom ? ` style="background: linear-gradient(90deg, ${layer.tint.off} 50%, ${layer.tint.on} 50%)"` : ""}>${custom ? "" : icon("plus", 14)}</button>` : "";
+      body = `<div class="stack">${label("Shape set · Keypad Graphics")}${segmented("set", sets.map((s) => [s, s]), layer.set)}</div>
+        <div class="stack">${label(`Colour · ${custom ? "Custom" : escapeHtml(layer.colour)}`)}
+          <div class="swatch-grid">${Object.keys(catalog.shapes[layer.set] || {}).map((c) => swatch(layer.set, c, !custom && c === layer.colour)).join("")}${customSwatch}</div>
+          <span class="help">Each swatch shows OFF and ON artwork.${canTint ? " To pick your own OFF and ON colours, click +." : ""}</span></div>
+        ${custom ? colourFields(layer, "tint") : ""}`;
     } else if (layer.type === "icon") {
-      form.innerHTML =
-        field("Search icons", `<input type="search" name="iconSearch" placeholder="monitor, mic, power…">`) +
-        `<div class="icon-grid" role="listbox" aria-label="Icons"></div>` +
-        field("Size", range("size", layer.size, 8, SIZE)) +
-        field("Stroke", range("stroke", layer.stroke, 0.5, 4, 0.25)) +
-        position(layer) + colour(layer);
-      renderIconGrid("");
+      body = `<div class="stack">${label(`Icon · ${escapeHtml(layer.icon)}`)}
+          <input class="field" type="search" name="iconSearch" placeholder="Search by name or tag" value="${escapeHtml(iconQuery)}" aria-label="Search icons">
+          <div class="icon-grid scroll" role="listbox" aria-label="Icons"></div>
+          <span class="help" data-icon-count></span></div>
+        <label class="stack">${label("Stroke width", `<span class="value" data-stroke-label>${layer.stroke}</span>`)}
+          <input type="range" name="stroke" min="0.5" max="4" step="0.25" value="${layer.stroke}"></label>
+        ${sizeField(layer)}${colourFields(layer)}`;
     } else if (layer.type === "text") {
-      form.innerHTML =
-        field("Text (up to 2 lines)", `<textarea name="lines" rows="2"></textarea>`) +
-        field("Font", `<select name="font">${options(FONTS, layer.font)}</select>`) +
-        field("Weight", `<select name="weight"><option value="400"${layer.weight === 400 ? " selected" : ""}>Regular</option><option value="700"${layer.weight === 700 ? " selected" : ""}>Bold</option></select>`) +
-        field("Size", range("size", layer.size, 8, 96)) +
-        field("Align", `<select name="align">${options(["left", "center", "right"], layer.align)}</select>`) +
-        position(layer) + colour(layer);
-      form.querySelector('[name="lines"]').value = layer.lines.join("\n");
+      body = `<div class="pair">
+          <label class="stack">${label("Line 1")}<input class="field" name="line1" value="${escapeHtml(layer.lines[0] || "")}"></label>
+          <label class="stack">${label("Line 2")}<input class="field" name="line2" placeholder="Optional" value="${escapeHtml(layer.lines[1] || "")}"></label>
+        </div>
+        <label class="stack">${label("Font")}<select class="field" name="font">${FONTS.map((f) =>
+          `<option${f === layer.font ? " selected" : ""}>${f}</option>`).join("")}</select></label>
+        <div class="pair">${segmented("weight", [[400, "Regular"], [700, "Bold"]], layer.weight)}
+          ${segmented("align", Object.entries(ALIGN_ICONS).map(([a, glyph]) => [a, cap(a === "center" ? "centre" : a), glyph]), layer.align)}</div>
+        ${sizeField(layer)}${colourFields(layer)}`;
     } else if (layer.type === "image") {
-      form.innerHTML =
-        `<div class="drop" data-target="off">OFF image: drop a PNG or SVG here, or <input type="file" accept="image/png,image/svg+xml" data-target="off"></div>` +
-        `<div class="drop" data-target="on">ON image (leave empty to use the OFF image): <input type="file" accept="image/png,image/svg+xml" data-target="on">
-           <button type="button" data-clear-on>Use OFF image</button></div>` +
-        field("Size", range("size", layer.size, 8, SIZE * 2)) +
-        position(layer);
+      body = imageRows(layer) + sizeField(layer);
     }
+    form.innerHTML = `<h3 class="title-sm">${cap(layer.type)} settings<span class="dot">.</span></h3>${body}`;
+    if (layer.type === "icon") renderIconGrid();
   }
 
-  function renderIconGrid(query) {
+  function renderIconGrid() {
     const grid = form.querySelector(".icon-grid");
     if (!grid) return;
     const current = recipe.layers[selected].icon;
-    grid.innerHTML = searchIcons(iconTags, query).map((name) =>
-      `<button type="button" class="icon-choice${name === current ? " selected" : ""}" data-icon="${name}" title="${name}" aria-label="${name}">
-         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="/vendor/lucide/sprite.svg#${name}"/></svg>
-       </button>`).join("");
+    const matches = iconMatches(iconQuery, 400);
+    grid.innerHTML = matches.slice(0, ICON_LIMIT).map((name) => iconChoice(name, name === current)).join("");
+    const total = Object.keys(iconTags).length.toLocaleString();
+    form.querySelector("[data-icon-count]").textContent = iconQuery.trim()
+      ? `${matches.length}${matches.length >= 400 ? "+" : ""} matches${matches.length > ICON_LIMIT ? `, showing ${ICON_LIMIT}` : ""}`
+      : `Common icons. Search ${total} Lucide icons by name or tag.`;
   }
 
-  function readValue(input) {
-    if (input.type === "number" || input.type === "range") return Number(input.value);
-    if (input.name === "weight") return Number(input.value);
-    if (input.name === "lines") return input.value.split("\n").slice(0, 2);
-    return input.value;
-  }
+  form.addEventListener("submit", (event) => event.preventDefault());
 
   form.addEventListener("input", (event) => {
     const input = event.target;
-    if (!input.name || selected < 0) return;
-    if (input.name === "iconSearch") return renderIconGrid(input.value);
+    const layer = recipe?.layers[selected];
+    if (!input.name || !layer) return;
+    if (input.name === "iconSearch") { iconQuery = input.value; return renderIconGrid(); }
     if (input.type === "number" && input.value === "") return;
-    const layer = recipe.layers[selected];
-    let changes;
-    if (input.name.startsWith("colour.")) {
-      changes = { colour: { ...layer.colour, [input.name.slice(7)]: input.value } };
-    } else {
-      changes = { [input.name]: readValue(input) };
+    if (input.name === "size") {
+      const value = Number(input.value);
+      form.querySelector("[data-size-label]").textContent = `${value} ${layer.type === "image" ? "%" : "px"}`;
+      return setLayer({ size: layer.type === "image" ? Math.round((value / 100) * SIZE) : value });
     }
-    if (input.name === "set") {
-      // Keep the colour if the new set has it.
-      const colours = Object.keys(catalog.shapes[input.value] || {});
-      if (!colours.includes(layer.colour)) changes.colour = colours.includes("Blue") ? "Blue" : colours[0];
+    if (input.name === "stroke") {
+      form.querySelector("[data-stroke-label]").textContent = input.value;
+      return setLayer({ stroke: Number(input.value) });
     }
-    change(updateLayer(recipe, selected, changes), { rebuildForm: input.name === "set" });
+    if (input.name === "x" || input.name === "y") return setLayer({ [input.name]: clampPosition(Number(input.value)) });
+    if (input.name === "line1" || input.name === "line2") {
+      const lines = [layer.lines[0] || "", layer.lines[1] || ""];
+      lines[input.name === "line1" ? 0 : 1] = input.value;
+      return setLayer({ lines: lines[1] ? lines : [lines[0]] });
+    }
+    if (input.name === "font") return setLayer({ font: input.value });
+    const [kind, state] = input.name.split(".");
+    if (kind === "colour" || kind === "hex") {
+      if (kind === "hex" && !isHex(input.value)) return;
+      const twin = form.querySelector(`[name="${kind === "hex" ? "colour" : "hex"}.${state}"]`);
+      if (twin) twin.value = input.value;
+      const prop = layer.type === "shape" ? "tint" : "colour";
+      setLayer({ [prop]: { ...layer[prop], [state]: input.value } });
+      if (prop === "tint") {
+        const tint = recipe.layers[selected].tint;
+        form.querySelector("[data-custom]").style.background =
+          `linear-gradient(90deg, ${tint.off} 50%, ${tint.on} 50%)`;
+      }
+    }
   });
 
   form.addEventListener("click", (event) => {
     const button = event.target.closest("button");
-    if (!button || selected < 0) return;
+    const layer = recipe?.layers[selected];
+    if (!button || !layer) return;
     if (button.dataset.icon) {
-      change(updateLayer(recipe, selected, { icon: button.dataset.icon }));
-      form.querySelectorAll(".icon-choice").forEach((b) => b.classList.toggle("selected", b === button));
-    } else if (button.hasAttribute("data-centre")) {
-      change(updateLayer(recipe, selected, { x: CENTRE, y: CENTRE }), { rebuildForm: true });
-    } else if (button.hasAttribute("data-clear-on")) {
-      change(updateLayer(recipe, selected, { on: "" }));
-      setStatus("The ON state now uses the OFF image.");
+      setLayer({ icon: button.dataset.icon });
+      form.querySelectorAll(".icon-choice").forEach((b) => b.classList.toggle("current", b === button));
+      form.querySelector(".label").textContent = `Icon · ${button.dataset.icon}`;
+    } else if (button.dataset.colour) {
+      setLayer({ colour: button.dataset.colour, tint: undefined }, { settings: true });
+    } else if (button.hasAttribute("data-custom")) {
+      if (!layer.tint) setLayer({ tint: { ...DEFAULT_TINT } }, { settings: true });
+    } else if (button.dataset.seg === "set") {
+      const colours = Object.keys(catalog.shapes[button.dataset.value] || {});
+      const colour = colours.includes(layer.colour) ? layer.colour : colours.includes("Blue") ? "Blue" : colours[0];
+      setLayer({ set: button.dataset.value, colour }, { settings: true });
+    } else if (button.dataset.seg === "weight") {
+      setLayer({ weight: Number(button.dataset.value) }, { settings: true });
+    } else if (button.dataset.seg === "align") {
+      setLayer({ align: button.dataset.value }, { settings: true });
+    } else if (button.dataset.remove) {
+      const state = button.dataset.remove;
+      setLayer({ [state]: "", [`${state}File`]: "" }, { settings: true });
     }
   });
 
-  // -- Image import ----------------------------------------------------------------
+  // -- Image import ----------------------------------------------------------------------
 
   async function importImage(file, target) {
     if (!file || !["image/png", "image/svg+xml"].includes(file.type)) {
-      setStatus(`${file ? file.name : "That file"} isn't a PNG or SVG. Choose a PNG or SVG file.`);
+      onStatus(`${file ? file.name : "That file"} isn't a PNG or SVG. Choose a PNG or SVG file.`, true);
       return;
     }
     const url = URL.createObjectURL(file);
@@ -207,16 +452,17 @@ export function createEditor({ root, catalog, iconTags, onChange }) {
         i.onerror = () => reject(new Error("load failed"));
         i.src = url;
       });
-      const natural = { width: img.naturalWidth || SIZE, height: img.naturalHeight || SIZE };
-      const { width, height } = fitWithin(natural.width, natural.height, MAX_IMPORT);
+      const { width, height } = fitWithin(img.naturalWidth || SIZE, img.naturalHeight || SIZE, MAX_IMPORT);
       const canvas = document.createElement("canvas");
       canvas.width = width;
       canvas.height = height;
       canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-      change(updateLayer(recipe, selected, { [target]: canvas.toDataURL("image/png") }), { rebuildForm: true });
-      setStatus(`Added ${file.name} (${width}x${height}).`);
+      const changes = { [target]: canvas.toDataURL("image/png"), [`${target}File`]: file.name };
+      if (target === "off") changes.source = undefined;    // Your own image now.
+      setLayer(changes, { settings: true });
+      onStatus(`Uploaded ${file.name} as the ${target.toUpperCase()} image.`);
     } catch {
-      setStatus(`Couldn't read ${file.name}. Check that it's a valid PNG or SVG.`);
+      onStatus(`Couldn't read ${file.name}. Check that it's a valid PNG or SVG.`, true);
     } finally {
       URL.revokeObjectURL(url);
     }
@@ -226,86 +472,86 @@ export function createEditor({ root, catalog, iconTags, onChange }) {
     const input = event.target;
     if (input.type === "file") importImage(input.files[0], input.dataset.target);
   });
-  form.addEventListener("dragover", (event) => {
-    if (event.target.closest(".drop")) event.preventDefault();
-  });
-  form.addEventListener("drop", (event) => {
-    const zone = event.target.closest(".drop");
-    if (!zone) return;
-    event.preventDefault();
-    importImage(event.dataTransfer.files[0], zone.dataset.target);
-  });
 
-  // -- Layer list and toolbar ------------------------------------------------------
+  // -- Toolbar ---------------------------------------------------------------------------
 
-  root.querySelector(".layer-toolbar").addEventListener("click", (event) => {
-    const type = event.target.dataset?.add;
-    if (!type || !recipe) return;
-    selected = recipe.layers.length;
-    change(addLayer(recipe, defaultLayer(type, catalog)), { rebuildForm: true });
-  });
-
-  list.addEventListener("click", (event) => {
-    const item = event.target.closest(".layer-item");
-    if (!item) return;
-    const index = Number(item.dataset.index);
-    const act = event.target.dataset?.act;
-    if (act === "up" || act === "down") {
-      const delta = act === "up" ? 1 : -1;        // The list shows the top layer first.
-      const next = moveLayer(recipe, index, delta);
-      if (next !== recipe) selected = index + delta;
-      change(next, { rebuildForm: true });
-    } else if (act === "hide") {
-      change(updateLayer(recipe, index, { visible: !recipe.layers[index].visible }));
-    } else if (act === "delete") {
-      selected = -1;
-      change(removeLayer(recipe, index), { rebuildForm: true });
-    } else {
-      selected = index;
-      renderList();
-      renderForm();
+  root.addEventListener("click", (event) => {
+    const button = event.target.closest("button");
+    if (!button || !recipe || !root.contains(button) || button.closest(".settings, .quick, .layer-list")) return;
+    if (button.dataset.add) {
+      const layer = defaultLayer(button.dataset.add, catalog);
+      if (layer.type === "text" && recipe.name) layer.lines = [recipe.name.replace(/_/g, " ")];
+      selected = recipe.layers.length;
+      iconQuery = "";
+      change(addLayer(recipe, layer), { settings: true });
+    } else if (button.hasAttribute("data-quick")) {
+      quick.open = !quick.open;
+      if (quick.open && !quick.label) quick.label = recipe.name.replace(/_/g, " ");
+      renderQuick();
+    } else if (button.dataset.preview) {
+      onPreview(button.dataset.preview === "on");
+    } else if (button.hasAttribute("data-library")) {
+      onChooseLibrary();
     }
   });
 
-  // -- Dragging on a canvas -----------------------------------------------------------
+  // -- Dragging on a canvas -----------------------------------------------------------------
 
   let drag = null;
-  for (const canvas of Object.values(canvases)) {
-    canvas.addEventListener("pointerdown", (event) => {
+  for (const wrap of root.querySelectorAll(".canvas-wrap")) {
+    wrap.addEventListener("pointerdown", (event) => {
       const layer = recipe?.layers[selected];
-      if (!layer || !("x" in layer)) return;
-      canvas.setPointerCapture(event.pointerId);
-      drag = { startX: event.clientX, startY: event.clientY, x: layer.x, y: layer.y };
+      if (!layer || !bounds(layer)) return;
+      wrap.setPointerCapture(event.pointerId);
+      drag = { startX: event.clientX, startY: event.clientY, x: layer.x, y: layer.y,
+               scale: SIZE / wrap.getBoundingClientRect().width };
     });
-    canvas.addEventListener("pointermove", (event) => {
+    wrap.addEventListener("pointermove", (event) => {
       if (!drag) return;
-      const scale = canvas.getBoundingClientRect().width / SIZE || SCALE;
-      change(updateLayer(recipe, selected, {
-        x: Math.round(drag.x + (event.clientX - drag.startX) / scale),
-        y: Math.round(drag.y + (event.clientY - drag.startY) / scale),
-      }));
+      const x = clampPosition(drag.x + (event.clientX - drag.startX) * drag.scale);
+      const y = clampPosition(drag.y + (event.clientY - drag.startY) * drag.scale);
+      setLayer({ x, y });
+      const fx = form.querySelector('[name="x"]');
+      const fy = form.querySelector('[name="y"]');
+      if (fx) fx.value = x;
+      if (fy) fy.value = y;
     });
-    const stop = () => {
-      if (drag) renderForm();
-      drag = null;
-    };
-    canvas.addEventListener("pointerup", stop);
-    canvas.addEventListener("pointercancel", stop);
+    const stop = () => { drag = null; };
+    wrap.addEventListener("pointerup", stop);
+    wrap.addEventListener("pointercancel", stop);
   }
 
   loadIcons();
+  renderQuick();
+  renderPreviewLinks();
 
   return {
     canvases,
     getRecipe: () => recipe,
-    setRecipe(next) {
+    // With keepLayer, keep the same layer selected if it still exists, as after an undo.
+    setRecipe(next, { keepLayer = false } = {}) {
       recipe = next;
-      selected = next && next.layers.length ? next.layers.length - 1 : -1;
-      root.classList.toggle("empty", !next);
-      setStatus(next ? "" : "Select a button on the keypad to edit it.");
+      if (!(keepLayer && next && selected >= 0 && selected < next.layers.length)) {
+        selected = next && next.layers.length ? next.layers.length - 1 : -1;
+        iconQuery = "";
+        quick.open = false;
+        quick.label = "";
+      }
+      renderQuick();
       paint();
       renderList();
-      renderForm();
+      renderSettings();
+    },
+    // Change the button's name without touching its layers.
+    rename(name) {
+      if (!recipe) return;
+      recipe = { ...recipe, name };
+      onChange(recipe);
+    },
+    setShowOn(on) {
+      showOn = on;
+      renderPreviewLinks();
     },
   };
 }
+

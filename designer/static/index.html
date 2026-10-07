@@ -9,61 +9,160 @@
   <script type="module" src="/static/app.js"></script>
 </head>
 <body>
-  <header class="bar">
-    <h1>Button Designer</h1>
-    <div class="project-bar">
-      <span id="project-name" class="project-name">No project</span>
-      <span id="unsaved" class="unsaved" title="Unsaved changes" hidden>●</span>
-      <button id="new" type="button">New</button>
-      <select id="projects" aria-label="Open a project"><option value="">Open…</option></select>
-      <button id="save" type="button" disabled>Save</button>
-      <button id="save-as" type="button" disabled>Save as</button>
+<div class="app">
+  <header class="header">
+    <div class="brand">Button Designer<span class="dot">.</span></div>
+    <div class="vrule" aria-hidden="true"></div>
+    <div class="project">
+      <div class="overline">Project</div>
+      <div class="project-line">
+        <span id="project-name" class="project-name">No project</span>
+        <span id="model-chip" class="chip" hidden></span>
+        <span id="unsaved" class="unsaved-mark" title="Unsaved changes" hidden></span>
+      </div>
     </div>
-    <label class="host">Keypad
-      <input id="host" list="keypads" placeholder="IP address, e.g. 172.17.0.46" spellcheck="false">
-      <datalist id="keypads"></datalist>
-    </label>
-    <button id="find" type="button">Find</button>
-    <button id="load" type="button">Load from keypad</button>
-    <button id="deploy" type="button" class="primary" disabled>Deploy</button>
-    <select id="backups" aria-label="Backup to restore" hidden></select>
-    <button id="restore" type="button" hidden>Restore backup</button>
-    <p id="status" role="status">Design buttons, then click Save. To put the project on a keypad, enter its address and click Deploy.</p>
+    <div class="file-actions lockable">
+      <button id="new" type="button" class="ghost">New</button>
+      <select id="projects" class="ghost open-select" aria-label="Open a project"><option value="">Open</option></select>
+      <button id="save" type="button" class="ghost">Save</button>
+      <button id="save-as" type="button" class="ghost">Save as</button>
+    </div>
+    <div class="header-right">
+      <div class="device-area lockable">
+        <div class="device">
+          <div class="device-label"><span id="conn" class="conn" aria-hidden="true"></span>Keypad</div>
+          <input id="host" class="host" placeholder="IP address" spellcheck="false" aria-label="Keypad IP address">
+          <button id="find-list" type="button" class="device-btn chevron" title="Keypads found" aria-label="Keypads found" hidden></button>
+          <button id="find" type="button" class="device-btn">Find</button>
+          <button id="load" type="button" class="device-btn">Load</button>
+          <button id="backups" type="button" class="device-btn">Backups</button>
+        </div>
+        <div id="find-popover" class="popover" hidden></div>
+      </div>
+      <button id="deploy" type="button" class="primary">Deploy<span aria-hidden="true">&gt;</span></button>
+    </div>
   </header>
-  <main>
-    <section class="pane keypad-pane" aria-label="Keypad">
-      <div class="page-bar">
-        <nav id="page-tabs" aria-label="Pages"></nav>
-        <button id="page-add" type="button" title="Add a page" aria-label="Add a page" disabled>+</button>
-        <button id="page-rename" type="button" disabled>Rename</button>
-        <button id="page-delete" type="button" disabled>Delete</button>
+
+  <main class="main">
+   <div class="workspace">
+    <section id="stage" class="stage" aria-label="Keypad">
+      <div id="model-banner" class="banner" hidden>
+        <span class="chip-error">Error</span>
+        <span id="model-banner-text"></span>
       </div>
-      <div id="faceplate" class="faceplate faceplate--square">
-        <div id="keypad" class="keypad"></div>
-        <div id="dial" class="dial" aria-hidden="true"><div class="knob"></div></div>
+      <div class="tabs-wrap lockable">
+        <nav id="page-tabs" class="page-tabs" aria-label="Pages"></nav>
+        <div id="rename-error" class="rename-error" role="alert" hidden></div>
       </div>
-      <label class="toggle"><input id="show-on" type="checkbox"> Show ON state</label>
-      <label class="goto">Go to page <select id="goto" disabled></select></label>
+      <div class="stage-body">
+        <div id="faceplate" class="faceplate">
+          <div id="keypad" class="keypad"></div>
+          <div id="dial" class="dial" aria-hidden="true"><div class="knob"></div></div>
+          <div class="led" aria-hidden="true"></div>
+        </div>
+        <div class="stage-controls">
+          <div class="seg seg-state" role="group" aria-label="Preview state">
+            <button id="show-off" type="button" class="current">OFF</button>
+            <button id="show-on" type="button">ON</button>
+          </div>
+          <div class="legend"><span class="unsaved-mark" aria-hidden="true"></span>Unsaved changes. Drag keys to swap artwork and page links. Ctrl+Z undoes.</div>        </div>
+      </div>
     </section>
-    <section id="editor" class="pane editor-pane empty" aria-label="Editor"></section>
-    <section class="pane library-pane" aria-label="Library">
-      <h2>Library</h2>
-      <button id="save-recipe" type="button" disabled>Save to library</button>
-      <div id="library" class="thumbs"></div>
-      <h2>Ready-made</h2>
-      <div id="ready-made" class="thumbs"></div>
+
+    <section id="drawer" class="drawer" aria-label="HControl">
+      <div id="drawer-resize" class="drawer-resize" title="Drag to resize" aria-hidden="true"></div>
+      <div class="drawer-bar">
+        <button id="drawer-toggle" type="button" class="drawer-tab" aria-expanded="true" aria-controls="drawer-body">
+          <span id="drawer-chevron"></span>HControl</button>
+        <span id="drawer-path" class="drawer-path"></span>
+        <span class="grow"></span>
+        <span id="drawer-warn" class="drawer-warn" hidden><span class="chip-check">Check</span>Unsaved page changes. Page numbers may change when you save and deploy.</span>
+        <button id="copy-all" type="button" class="drawer-btn" title="Copy every line you send and receive">Copy all</button>      </div>
+      <div id="drawer-body" class="drawer-body">
+        <div class="drawer-pane code-pane">
+          <div class="pane-title">Strings <span class="pane-sub">→ send · ← expect</span></div>
+          <div id="hc-code" class="hc-code" role="list"></div>
+        </div>
+        <div class="drawer-pane notes-pane">
+          <div class="pane-title">Notes</div>
+          <div id="hc-notes" class="hc-notes"></div>
+        </div>
+      </div>
     </section>
+   </div>
+
+    <aside class="sidebar">
+      <div class="side-tabs" role="tablist">
+        <button id="tab-button" type="button" role="tab" class="current">Button</button>
+        <button id="tab-library" type="button" role="tab">Library</button>
+      </div>
+
+      <div id="button-panel" class="side-panel">
+        <div id="no-selection" class="pad">
+          <h2 class="title">Button<span class="dot">.</span></h2>
+          <p class="lead">Select a key on the keypad to edit its layers, OFF and ON images and page link.</p>
+        </div>
+        <div id="selection" class="selection" hidden>
+          <div class="sel-head">
+            <div class="sel-thumb"><img id="sel-thumb" alt=""></div>
+            <div class="sel-text">
+              <div id="sel-overline" class="overline"></div>
+              <div class="sel-title"><span id="sel-name"></span><span class="dot">.</span>
+                <span id="sel-changed" class="changed-tag" hidden>Changed</span></div>
+            </div>
+          </div>
+          <div id="editor" class="editor"></div>
+          <div class="block divided">
+            <label class="stack"><span class="label">Button name</span>
+              <input id="button-name" class="field" spellcheck="false" maxlength="64">
+              <span id="name-hint" class="help"></span></label>
+            <label class="stack"><span class="label">Go to page</span>
+              <select id="goto" class="field"></select></label>
+          </div>
+          <div class="grow"></div>
+          <div class="side-footer">
+            <button id="save-recipe" type="button" class="btn-outline wide">Save to library</button>
+            <button id="clear-layers" type="button" class="btn-danger" title="Remove all layers and images">Clear layers</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="library-panel" class="side-panel" hidden>
+        <div class="lib-search"><input id="lib-query" class="field" type="search" placeholder="Search library" aria-label="Search library"></div>
+        <div class="lib-body">
+          <div class="stack">
+            <span class="label">Saved recipes</span>
+            <div id="saved-empty" class="dashed-note">Select a button and use Save to library to keep its layers as a recipe.</div>
+            <div id="saved" class="tiles"></div>
+          </div>
+          <div class="stack">
+            <span class="label">Ready-made · Keypad Graphics</span>
+            <div id="ready" class="tiles"></div>
+            <p id="lib-none" class="note" hidden>Nothing matches.</p>
+            <p class="help">Click to apply to the selected key, or drag onto any key.</p>
+          </div>
+        </div>
+      </div>
+    </aside>
   </main>
-  <dialog id="new-dialog" aria-labelledby="new-title">
-    <form method="dialog" class="new-form">
-      <h2 id="new-title">New project</h2>
-      <label>Name <input id="new-name" required spellcheck="false" maxlength="64"></label>
-      <label>Keypad <select id="new-model"></select></label>
-      <div class="dialog-buttons">
-        <button type="button" id="new-cancel">Cancel</button>
-        <button value="create" class="primary">Create</button>
-      </div>
-    </form>
-  </dialog>
+
+  <footer class="statusbar">
+    <span id="status-chip" class="chip-error" hidden>Error</span>
+    <span id="status" role="status"></span>
+    <span class="grow"></span>
+    <span id="last-deployed" class="last-deployed"></span>
+  </footer>
+</div>
+
+<div id="modal" class="overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-head">
+      <h2 id="modal-title" class="modal-title"></h2>
+      <p id="modal-body" class="modal-body"></p>
+    </div>
+    <div id="modal-content" class="modal-content"></div>
+    <div id="modal-actions" class="modal-actions"></div>
+  </div>
+</div>
 </body>
 </html>

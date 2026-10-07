@@ -70,6 +70,20 @@ export function setDestination(layout, pageId, button, targetId) {
   return { ...layout, destinations };
 }
 
+// Swap two buttons' page links, as when you drag one key onto another. A
+// link that would then point at its own page is dropped.
+export function swapDestinations(layout, a, b) {
+  const destinations = { ...layout.destinations };
+  const ka = key(a.pageId, a.button);
+  const kb = key(b.pageId, b.button);
+  const [ta, tb] = [destinations[ka], destinations[kb]];
+  delete destinations[ka];
+  delete destinations[kb];
+  if (tb && tb !== a.pageId) destinations[ka] = tb;
+  if (ta && ta !== b.pageId) destinations[kb] = ta;
+  return { ...layout, destinations };
+}
+
 // The deploy request's "layout": current page numbers and names.
 export function layoutRequest(layout) {
   return {

@@ -1,6 +1,6 @@
 // Draws a recipe onto a 188x188 canvas for the OFF or ON state.
 
-import { SIZE, shapeFiles } from "./model.js";
+import { SIZE, shapeFiles, tintPixels, tintSource } from "./model.js";
 import { assetUrl } from "./api.js";
 
 const images = new Map();       // src -> Promise<HTMLImageElement>
@@ -36,6 +36,28 @@ function loadImage(src) {
   return images.get(src);
 }
 
+const tinted = new Map();       // src + colour -> Promise<canvas>
+
+// White shape artwork recoloured to a custom colour; see tintPixels.
+function tintedShape(src, colour) {
+  const key = `${src} ${colour}`;
+  if (!tinted.has(key)) {
+    tinted.set(key, loadImage(src).then((img) => {
+      const canvas = blankCanvas();
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, SIZE, SIZE);
+      const image = ctx.getImageData(0, 0, SIZE, SIZE);
+      const d = image.data;
+      const centre = (Math.floor(SIZE / 2) * SIZE + Math.floor(SIZE / 2)) * 4;
+      const base = Math.max(0.05, (0.299 * d[centre] + 0.587 * d[centre + 1] + 0.114 * d[centre + 2]) / 255);
+      tintPixels(d, base, colour);
+      ctx.putImageData(image, 0, 0);
+      return canvas;
+    }));
+  }
+  return tinted.get(key);
+}
+
 function iconSource(name, size, colour, stroke) {
   const inner = iconMarkup(name);
   if (inner === null) return null;
@@ -48,6 +70,12 @@ function iconSource(name, size, colour, stroke) {
 async function drawLayer(ctx, layer, state, catalog) {
   switch (layer.type) {
     case "shape": {
+      const grey = tintSource(catalog, layer.set);
+      const tint = layer.tint?.[state];
+      if (grey && /^#[0-9a-f]{6}$/i.test(tint || "")) {
+        ctx.drawImage(await tintedShape(assetUrl(grey[state]), tint), 0, 0, SIZE, SIZE);
+        return;
+      }
       const files = shapeFiles(catalog, layer.set, layer.colour);
       if (!files) return;
       ctx.drawImage(await loadImage(assetUrl(files[state])), 0, 0, SIZE, SIZE);

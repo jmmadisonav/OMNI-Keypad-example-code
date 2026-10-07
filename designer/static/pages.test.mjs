@@ -92,3 +92,19 @@ test("recipesRequest drops deleted pages and renumbers", () => {
   const recipes = new Map([["L1-1", a], ["L2-2", b], ["N1-4", a]]);
   assert.deepEqual(recipesRequest(layout, recipes), { "1-2": b, "2-4": a });
 });
+
+test("swapDestinations swaps two buttons' page links", async () => {
+  const { swapDestinations } = await import("./pages.js");
+  const layout = layoutFromConfig(config);         // L1-2 -> L2, L2-1 -> L1.
+  const swapped = swapDestinations(layout, { pageId: "L1", button: 1 }, { pageId: "L1", button: 2 });
+  assert.equal(destinationOf(swapped, "L1", 1), "L2");
+  assert.equal(destinationOf(swapped, "L1", 2), null);
+});
+
+test("swapDestinations drops a link that would point at its own page", async () => {
+  const { swapDestinations } = await import("./pages.js");
+  const layout = layoutFromConfig(config);
+  const swapped = swapDestinations(layout, { pageId: "L1", button: 2 }, { pageId: "L2", button: 2 });
+  assert.equal(destinationOf(swapped, "L1", 2), null);
+  assert.equal(destinationOf(swapped, "L2", 2), null);  // Its link went to L2 itself.
+});
