@@ -164,7 +164,18 @@ class _Handler(BaseHTTPRequestHandler):
             return self._json(self.ops.backups())
         if route == ("POST", "design", "restore"):
             body = self._body()
-            return self._json(self.ops.restore(self._host_from(body), _field(body, "backup", str)))
+            host = self._host_from(body)
+            name = _field(body, "backup", str)
+            data = self.ops.backup_data(name)
+            try:
+                return self._json(self.ops.restore(host, name,
+                                                   model=_backup_model(self.projects, data)))
+            except ModelMismatch as error:
+                raise HttpError(409, f"This backup is for "
+                                     f"{_article(_model_name(self.projects, error.expected))}, "
+                                     f"but the keypad at {host} is "
+                                     f"{_article(_model_name(self.projects, error.actual))}.",
+                                model=True) from None
         if route == ("GET", "models"):
             return self._json([m.summary() for m in self.projects.models.values()])
         if route == ("GET", "projects"):
@@ -305,6 +316,15 @@ def _article(name: str) -> str:
 def _model_name(projects: ProjectStore, model: str) -> str:
     known = projects.models.get(model)
     return known.name if known else model
+
+
+def _backup_model(projects: ProjectStore, data: bytes) -> str | None:
+    """Return the model whose page layout matches a backup's page 1, if exactly one does."""
+    page = Design.from_cpio(data).pages[0]
+    dial = all(key in page for key in ("ledring", "dial", "dial_button"))
+    matches = [m.id for m in projects.models.values()
+               if m.buttons == len(page.get("buttons", [])) and m.dial == dial]
+    return matches[0] if len(matches) == 1 else None
 
 
 def _supported(projects: ProjectStore) -> str:

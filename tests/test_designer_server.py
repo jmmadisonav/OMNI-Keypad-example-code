@@ -1,4 +1,5 @@
 import base64
+import copy
 import json
 import tempfile
 import threading
@@ -360,6 +361,29 @@ class ServerTests(unittest.TestCase):
         status, body = self.json_request("POST", "/api/projects/Lobby/deploy", {"host": "127.0.0.1"})
         self.assertEqual(status, 400)
         self.assertIn("OMNI-KP-9X", body["error"])
+
+    def write_backup(self, data):
+        name = "backup_20260101_000000.cpio"
+        (self.ops.backup_dir / name).write_bytes(data)
+        return name
+
+    def test_restore_6bv_backup_to_8bv_is_409(self):
+        template = self.projects.models["OMNI-KP-6BV"].template
+        name = self.write_backup(Design(copy.deepcopy(template)).to_cpio())
+        status, body = self.json_request("POST", "/api/design/restore",
+                                         {"host": "127.0.0.1", "backup": name})
+        self.assertEqual(status, 409)
+        self.assertIs(body["model"], True)
+        self.assertEqual(body["error"],
+                         "This backup is for a 6BV, but the keypad at 127.0.0.1 is an 8BV.")
+        self.assertEqual(self.keypad.files[DESIGN_PATH], self.data)
+
+    def test_restore_8bv_backup_to_8bv_works(self):
+        name = self.write_backup(self.data)
+        status, body = self.json_request("POST", "/api/design/restore",
+                                         {"host": "127.0.0.1", "backup": name})
+        self.assertEqual(status, 200)
+        self.assertEqual(body["fingerprint"], Design.from_cpio(self.data).fingerprint)
 
 
 if __name__ == "__main__":

@@ -264,14 +264,30 @@ class KeypadOps:
                                    backup) from error
             return {"fingerprint": design.fingerprint, "backup": backup}
 
-    def restore(self, host: str, backup: str) -> dict:
+    def backup_data(self, backup: str) -> bytes:
+        """Return the bytes of the named backup.
+
+        Raises ValueError if the name isn't a backup file name, and
+        FileNotFoundError if there's no such backup.
+        """
         if not _BACKUP_NAME.fullmatch(backup):
             raise ValueError(f"{backup!r} isn't a backup file name")
         path = self.backup_dir / backup
         if not path.exists():
             raise FileNotFoundError(f"there's no backup called {backup}")
+        return path.read_bytes()
+
+    def restore(self, host: str, backup: str, model: str | None = None) -> dict:
+        """Upload a backup to the keypad.
+
+        If you pass model, refuse a keypad of another model.
+        """
+        data = self.backup_data(backup)
         with self._exclusive():
-            data = path.read_bytes()
+            if model is not None:
+                actual = self.keypad_model(host)
+                if actual != model:
+                    raise ModelMismatch(model, actual)
             fingerprint = Design.from_cpio(data).fingerprint
             self._upload(host, data, fingerprint)
             return {"fingerprint": fingerprint}

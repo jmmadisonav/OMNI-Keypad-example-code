@@ -276,6 +276,21 @@ class KeypadOpsTests(unittest.TestCase):
         self.assertEqual(self.keypad.files[DESIGN_PATH], self.data)
         self.assertEqual(set(self.backups.iterdir()), before)
 
+    def test_restore_refuses_another_model(self):
+        (self.backups / "backup_20260101_000000.cpio").write_bytes(self.data)
+        self.keypad.params["/configuration/device/model"]["value"] = "OMNI-KP-6BV"
+        with self.assertRaises(ModelMismatch) as caught:
+            self.ops.restore("127.0.0.1", "backup_20260101_000000.cpio", model="OMNI-KP-8BV")
+        self.assertEqual((caught.exception.expected, caught.exception.actual),
+                         ("OMNI-KP-8BV", "OMNI-KP-6BV"))
+        self.assertEqual(self.keypad.files[DESIGN_PATH], self.data)
+
+    def test_restore_without_model_skips_the_check(self):
+        result = self.ops.deploy_project("127.0.0.1", self.project(), original().fingerprint)
+        self.keypad.params["/configuration/device/model"]["value"] = "OMNI-KP-6BV"
+        self.ops.restore("127.0.0.1", result["backup"])
+        self.assertEqual(self.keypad.files[DESIGN_PATH], self.data)
+
     def test_restore_rejects_unsafe_names(self):
         for name in ("../original_design.cpio", "x.cpio", "backup_1.cpio"):
             with self.subTest(name=name), self.assertRaises(ValueError):
