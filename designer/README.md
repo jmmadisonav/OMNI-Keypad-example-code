@@ -33,10 +33,11 @@ port, add `--port 8050`. To stop it, press Ctrl+C.
 ## Design and deploy buttons
 
 1. The designer opens your most recent project, or a new project called
-   "Untitled" the first time. To start another, click **New**. To work on a
-   keypad's current design, enter its IP address, or click **Find**, and click
-   **Load from keypad**. That saves the design as a new project named after
-   the keypad, for example `172-17-0-55 2026-10-06`.
+   "Untitled" the first time. To start another, click **New**, and choose its
+   name and keypad model. To work on a keypad's current design, enter its IP
+   address, or click **Find**, and click **Load from keypad**. That saves the
+   design as a new project named after the keypad, for example
+   `172-17-0-55 2026-10-06`.
 1. Click a button on the keypad view. The editor shows its layers, or its
    current images if it wasn't designed in the designer.
 1. Add layers with **Shape**, **Icon**, **Text**, and **Image**. To move a
@@ -85,6 +86,31 @@ deploy it.
 **Note:** HControl paths use page numbers, such as `/page3/button1/action`.
 Adding a page only adds new numbers. Deleting a page moves the pages after it
 up one number, so update any app that uses their paths.
+
+## Keypad models
+
+The designer supports these OMNI keypads:
+
+| Model | Buttons | Dial and LED ring |
+|---|---|---|
+| OMNI-KP-6B | 6, in 2 columns and 3 rows | No |
+| OMNI-KP-6BV | 6, in 2 columns and 3 rows | Yes |
+| OMNI-KP-8BV | 8, in 4 columns and 2 rows | Yes |
+
+Each project is for one model. To choose it, click **New** and pick the
+model. **Load from keypad** uses the model the keypad reports. You can't
+change a project's model later.
+
+The 6B and 6BV are marked "untested": their templates follow AVX
+Architect's 6B and 6BV designs, but haven't been deployed to a real unit
+yet.
+
+**Deploy** checks the keypad's model first. If it isn't the project's model,
+nothing is uploaded.
+
+Each model is a file in `designer/models/`. If a real keypad's design differs
+from a model's template, change the template in that file. The designer
+checks the files when it starts, and names any file that's wrong.
 
 ## Projects
 
