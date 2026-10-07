@@ -1,0 +1,27 @@
+{
+  "name": "omni-keypad-designer",
+  "version": "0.1.0",
+  "description": "OMNI Keypad Designer",
+  "author": "MagicSoftware",
+  "main": "dist-electron/electron/main.js",
+  "private": true,
+  "scripts": {
+    "build:electron": "tsc -p electron/tsconfig.json",
+    "stage:python": "node build_tools/stage-python.mjs",
+    "electron": "npm run build:electron && electron .",
+    "package": "npm run build:electron && npm run stage:python && electron-builder --dir",
+    "installer": "npm run build:electron && npm run stage:python && electron-builder",
+    "test": "vitest run",
+    "test:designer": "node --test \"designer/static/*.test.mjs\"",
+    "release": "node build_tools/release.mjs",
+    "release:publish": "node build_tools/publish-release.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "archiver": "^7.0.1",
+    "electron": "^44.6.0",
+    "electron-builder": "^26.15.3",
+    "typescript": "~5.9.2",
+    "vitest": "^3.2.7"
+  }
+}

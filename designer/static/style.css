@@ -393,7 +393,7 @@ label.btn-outline { cursor: pointer; }
          border-bottom: 8px solid var(--red); }
 .modal-head { display: flex; flex-direction: column; gap: 8px; padding: 24px 24px 0; }
 .modal-title { margin: 0; font-size: 22px; font-weight: 700; }
-.modal-body { margin: 0; font-size: 14px; color: var(--grey); line-height: 1.6; }
+.modal-body { margin: 0; font-size: 14px; color: var(--grey); line-height: 1.6; white-space: pre-line; }
 .modal-body:empty { display: none; }
 .modal-content { display: flex; flex-direction: column; gap: 12px; padding: 16px 24px; }
 .modal-content:empty { padding-bottom: 8px; }

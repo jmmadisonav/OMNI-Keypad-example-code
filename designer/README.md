@@ -34,6 +34,13 @@ python designer/server.py
 The designer opens in your browser at `http://127.0.0.1:8044/`. To use another
 port, add `--port 8050`. To stop it, press Ctrl+C.
 
+The designer is also a Windows desktop app, **OMNI Keypad Designer**, with its
+own installer. The app carries its own Python, so you don't need to install
+Python to use it. It keeps projects, backups, and the recipe library in
+`Documents\OMNI Keypad Designer` instead of `designer/`. To open that folder,
+click **File > Open Projects Folder**. To build the app, see
+[Build the desktop app](#build-the-desktop-app).
+
 ## Design and deploy buttons
 
 1. The designer opens your most recent project, or a new project called
@@ -189,12 +196,98 @@ explains the protocol rules.
 If you've added or deleted pages since you last saved, the drawer warns you
 that the page numbers can change when you save and deploy.
 
+## Build the desktop app
+
+The desktop app is an Electron window around the designer. It starts
+`designer/server.py` with a bundled copy of Python's embeddable runtime,
+and shows the same page you get in a browser. Its code is in `electron/`, and
+its release scripts are in `build_tools/`, following the BSS Commission app.
+
+### Before you begin
+
+- Node.js 22 or later.
+- The Node dependencies: run `npm install` from the repository folder.
+- To sign a release: the code-signing certificate at
+  `%OneDriveCommercial%\WindowSigningCert\MyKey.pfx`, and a `.env` file at the
+  repository root with `SIGNING_PASSWORD` set to its password. To make one,
+  copy `.env.example` to `.env`. `.env` is ignored by git; never commit it.
+
+The first build downloads Python's embeddable runtime from python.org and
+keeps it in `build/cache/`. To use another Python version, change
+`PYTHON_VERSION` in `build_tools/stage-python.mjs`.
+
+### Run and build
+
+- To run the app from source, run `npm run electron`. It uses the Python on
+  your PATH, or the one the `OMNI_PYTHON` environment variable names.
+- To build the app without an installer, run `npm run package`. The app is
+  in `output/win-unpacked/`.
+- To build an unsigned installer, run `npm run installer`. The installer is
+  `output/omni_keypad_designer_setup_v<version>.exe`.
+
+To try a build without touching your own projects, set
+`OMNI_KEYPAD_DATA_DIR` to another folder before you start the app.
+
+### What the installer does
+
+- Asks whether to install for everyone on the computer (needs admin) or just
+  the current user, and lets you change the install folder.
+- Adds a Start menu shortcut, **OMNI Keypad Designer**. There's no desktop
+  shortcut.
+- Offers to start the app when it finishes, and adds the app to Windows'
+  installed apps, with an uninstaller.
+
+### Licensing
+
+The app is licensed like every Magic Software app: at startup it checks in
+with the license server as `omni_keypad_designer`, and keeps its license in
+`HKCU\SOFTWARE\Magic Software\OMNI Keypad Designer`. If the server requires a
+serial number, the app asks for one, and it supports manual activation when
+the server can't be reached. The server decides whether a serial is required;
+to require one even before the server first answers, set `ENFORCE_SERIAL` in
+`electron/main.ts`.
+
+The check-in is also the update check: if the server reports a newer version,
+the app offers to open its download page.
+
+### Cut a release
+
+To build a signed release, run:
+
+```
+npm run release -- <version>
+```
+
+For example, `npm run release -- 0.2.0`. The script bumps the version in
+`package.json`, opens `output/release_notes.txt` for you to fill in, builds
+and signs the app and its installer, and zips the installer with the release
+notes as `output/OMNI_Keypad_Designer_<version>.zip`. To preview the steps
+without changing anything, add `--dry-run`.
+
+The release signs the app, its installer, and its uninstaller. The bundled
+`python.exe` and `pythonw.exe` keep the Python Software Foundation's own
+signature: `build_tools/sign.cjs` stops electron-builder from replacing it
+with yours.
+
+The script doesn't touch git. Afterwards, commit, tag, and push the release,
+and then publish it to GitHub Releases:
+
+```
+git tag v<version>
+git push origin v<version>
+npm run release:publish -- <version>
+```
+
+Publishing needs the [GitHub CLI](https://cli.github.com/), signed in with
+`gh auth login`.
+
 ## Run the tests
 
 To run the Python tests, run `python -m unittest discover -s tests -t .`.
 
 To run the JavaScript tests, you need Node.js 18 or later. Run
-`node --test "designer/static/*.test.mjs"`.
+`npm run test:designer` for the designer page, and `npm test` for the desktop
+app and its build scripts.
 
 ## Check on a real keypad
 

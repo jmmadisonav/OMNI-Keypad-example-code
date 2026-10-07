@@ -1,0 +1,65 @@
+# Builds the app and its NSIS installer. `npm run package` passes --dir to
+# stop at the unpacked folder; `npm run installer` builds the setup exe.
+appId: com.magicsoftware.omni-keypad-designer
+
+# Names the executable: omni_keypad_designer.exe, matching the snake_case
+# convention the Python projects use.
+productName: omni_keypad_designer
+
+directories:
+  output: output
+
+# The compiled main process. The designer itself runs from the extra
+# resources below, outside the archive, because Python reads it from disk.
+files:
+  - dist-electron/**/*
+  - package.json
+  - "!**/*.map"
+
+asar: true
+
+# Built by build_tools/stage-python.mjs, which the `package` and `installer`
+# scripts run first. electron/paths.ts finds them under resources/.
+extraResources:
+  - from: build/python
+    to: python
+  - from: build/designer
+    to: designer
+
+win:
+  target: nsis
+  icon: icon/keypad.ico
+  # Signing happens only when WIN_CSC_LINK and WIN_CSC_KEY_PASSWORD are set,
+  # which build_tools/release.mjs does. Without them the build is unsigned,
+  # which is what `npm run package` wants. SHA-256 only: SHA-1 signatures
+  # have been untrusted by Windows for years.
+  signtoolOptions:
+    signingHashAlgorithms:
+      - sha256
+    # Signs as usual, except the bundled Python's python.exe and pythonw.exe,
+    # which keep the Python Software Foundation's signature. See the file.
+    sign: build_tools/sign.cjs
+
+nsis:
+  # The assisted installer rather than a one-click one, asking whether to
+  # install for everyone or just this user.
+  oneClick: false
+  perMachine: false
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+  # The same GUID as project_config.json's APP_ID, so this app keeps one
+  # identity whatever builds its installer.
+  guid: 85FE3E55-AF9A-460C-A720-4CCBF9AE5631
+  shortcutName: OMNI Keypad Designer
+  uninstallDisplayName: OMNI Keypad Designer
+  createStartMenuShortcut: true
+  createDesktopShortcut: false
+  runAfterFinish: true
+  # A blockmap only serves electron-updater's differential downloads, which
+  # this app doesn't use.
+  differentialPackage: false
+  installerIcon: icon/keypad.ico
+  uninstallerIcon: icon/keypad.ico
+  # Must match installerExeName in build_tools/project-config.mjs, which the
+  # release zip step looks for. package.json's version has no leading "v".
+  artifactName: omni_keypad_designer_setup_v${version}.${ext}

@@ -7,3 +7,12 @@ docs/superpowers/
 docs/OMNI_keypad_load2.pcapng
 designer/backups/
 designer/projects/
+
+# Desktop app: Node dependencies, build products, and release artifacts.
+/node_modules
+/dist-electron
+/build
+/output
+
+# Signing secret -- see .env.example. NEVER commit the real file.
+.env

@@ -1508,7 +1508,45 @@ async function runRestore(backup, listView) {
 
 // -- Start ------------------------------------------------------------------------------
 
+// In the desktop app, the main process asks the page to show messages, such
+// as licensing's (see electron/app-dialog.ts). One at a time, in order; each
+// must be answered, so they can't be dismissed with Escape or the backdrop.
+function wireAppDialogs() {
+  const bridge = window.appDialog;
+  if (!bridge) return;                        // In a browser, there's no main process.
+  const queue = [];
+  const seen = new Set();
+  let showing = false;
+  const next = () => {
+    if (showing || !queue.length) return;
+    const request = queue.shift();
+    showing = true;
+    const done = (confirmed) => {
+      closeModal();
+      bridge.answer(request.id, confirmed);
+      showing = false;
+      next();
+    };
+    showModal({
+      title: request.title,
+      body: request.message,
+      closable: false,
+      secondary: request.cancelLabel ? { text: request.cancelLabel, onClick: () => done(false) } : null,
+      primary: { text: request.confirmLabel, onClick: () => done(true) },
+    });
+  };
+  const add = (request) => {
+    if (seen.has(request.id)) return;         // Both pushed and pending.
+    seen.add(request.id);
+    queue.push(request);
+    next();
+  };
+  bridge.onShow(add);
+  bridge.getPending().then((pending) => pending.forEach(add));
+}
+
 function wire() {
+  wireAppDialogs();
   $("new").addEventListener("click", newProject);
   $("projects").addEventListener("change", openProject);
   $("save").addEventListener("click", onSave);
