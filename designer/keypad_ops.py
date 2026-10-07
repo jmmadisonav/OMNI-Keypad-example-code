@@ -232,14 +232,7 @@ class KeypadOps:
         Refuse a keypad of another model, even with force.
         """
         with self._exclusive():
-            try:
-                actual = self.keypad_model(host)      # Before anything slow or risky.
-            except TimeoutError:
-                # If the model query times out, check if the keypad is still alive.
-                if not self._answers(host):
-                    raise TimeoutError(f"the keypad at {host} stopped responding while it "
-                                       "sent its design. Nothing was uploaded.") from None
-                raise
+            actual = self.keypad_model(host)      # Before anything slow or risky.
             if actual != model:
                 raise ModelMismatch(model, actual)
             try:
