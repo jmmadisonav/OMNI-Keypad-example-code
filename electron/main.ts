@@ -4,7 +4,7 @@
 // designer page in a window, and licenses the app as every Magic Software
 // app does. The designer itself is unchanged: the same page and server you
 // get from `python designer/server.py`.
-import { app, BrowserWindow, dialog, ipcMain, Menu, shell, type MenuItemConstructorOptions } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron';
 import type { ChildProcess } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -15,6 +15,7 @@ import { registryLicenseStore } from './license/registry';
 import { setPromptFontDir } from './license/serial-prompt';
 import { APP_NAME, designerDataDir, designerLocation, userDataDir } from './paths';
 import { serverArgs, startServer } from './server-process';
+import { shortcutFor } from './shortcuts';
 
 /** Require a serial number even before the license server says so -- see
  * `enforceSerial` in electron/license/license.ts. The server can still turn
@@ -54,52 +55,9 @@ const appDialogs = new AppDialogs(request => sendToWindow(mainWindow, 'app-dialo
 ipcMain.handle('app-dialog:pending', () => appDialogs.pending());
 ipcMain.on('app-dialog:answer', (_event, id: number, confirmed: boolean) => appDialogs.answer(id, confirmed));
 
-function buildMenu(): void {
-  const template: MenuItemConstructorOptions[] = [
-    {
-      label: 'File',
-      submenu: [
-        { label: 'Open Projects Folder', click: () => void shell.openPath(dataDir) },
-        { type: 'separator' },
-        { role: 'quit' },
-      ],
-    },
-    {
-      // No Undo or Redo here: a menu accelerator would take Ctrl+Z before the
-      // page sees it, and the designer has its own undo.
-      label: 'Edit',
-      submenu: [{ role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { type: 'separator' }, { role: 'selectAll' }],
-    },
-    {
-      label: 'View',
-      submenu: [
-        { role: 'reload' },
-        { role: 'toggleDevTools' },
-        { type: 'separator' },
-        { role: 'resetZoom' },
-        { role: 'zoomIn' },
-        { role: 'zoomOut' },
-        { type: 'separator' },
-        { role: 'togglefullscreen' },
-      ],
-    },
-    {
-      label: 'Help',
-      submenu: [
-        {
-          label: `About ${APP_NAME}`,
-          click: () => void appDialogs.show({
-            title: APP_NAME,
-            message: `Version ${app.getVersion()}. Projects, backups, and the recipe library are in ${dataDir}.`,
-            confirmLabel: 'OK',
-            cancelLabel: null,
-          }),
-        },
-      ],
-    },
-  ];
-  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
-}
+/** What the page shows only in the desktop app -- see electron/preload.ts. */
+ipcMain.handle('desktop:info', () => ({ version: app.getVersion(), dataDir }));
+ipcMain.handle('desktop:openDataFolder', () => shell.openPath(dataDir));
 
 function createWindow(url: string): BrowserWindow {
   const win = new BrowserWindow({
@@ -119,6 +77,22 @@ function createWindow(url: string): BrowserWindow {
   });
   // The page's own title is "Button Designer"; keep the app's name.
   win.on('page-title-updated', event => event.preventDefault());
+  // No menu bar: the page's header is the app's menu. The shortcuts a menu
+  // would have provided are handled here instead -- see electron/shortcuts.ts.
+  win.webContents.on('before-input-event', (event, input) => {
+    const shortcut = shortcutFor(input);
+    if (!shortcut) { return; }
+    event.preventDefault();
+    const contents = win.webContents;
+    switch (shortcut) {
+      case 'devtools': contents.toggleDevTools(); break;
+      case 'reload': contents.reload(); break;
+      case 'zoom-in': contents.setZoomLevel(Math.min(contents.getZoomLevel() + 0.5, 5)); break;
+      case 'zoom-out': contents.setZoomLevel(Math.max(contents.getZoomLevel() - 0.5, -3)); break;
+      case 'zoom-reset': contents.setZoomLevel(0); break;
+      case 'fullscreen': win.setFullScreen(!win.isFullScreen()); break;
+    }
+  });
   win.once('ready-to-show', () => win.show());
 
   // Links to anywhere but the designer open in the browser, never in the app.
@@ -191,7 +165,7 @@ async function start(): Promise<void> {
         dialog.showErrorBox(APP_NAME, `The designer stopped unexpectedly (exit code ${code}). Restart ${APP_NAME}.`);
       }
     });
-    buildMenu();
+    Menu.setApplicationMenu(null);
     mainWindow = createWindow(running.url);
     const win = mainWindow;
     // Wait for the page, so a licensing dialog sits over a drawn window. Only

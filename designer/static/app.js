@@ -1545,8 +1545,25 @@ function wireAppDialogs() {
   bridge.getPending().then((pending) => pending.forEach(add));
 }
 
+// In the desktop app, the page is the only menu: it offers the projects
+// folder and shows the version, which a browser has no use for.
+async function wireDesktop() {
+  const desktop = window.desktop;
+  if (!desktop) return;
+  const { version, dataDir } = await desktop.info();
+  $("open-folder").hidden = false;
+  $("open-folder").title = `Open ${dataDir}, which holds your projects, backups, and library`;
+  $("open-folder").addEventListener("click", async () => {
+    const error = await desktop.openDataFolder();
+    if (error) setStatus(`Couldn't open ${dataDir}: ${error}`, true);
+  });
+  $("app-version").hidden = false;
+  $("app-version").textContent = `v${version}`;
+}
+
 function wire() {
   wireAppDialogs();
+  wireDesktop();
   $("new").addEventListener("click", newProject);
   $("projects").addEventListener("change", openProject);
   $("save").addEventListener("click", onSave);

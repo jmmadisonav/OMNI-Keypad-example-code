@@ -38,8 +38,11 @@ The designer is also a Windows desktop app, **OMNI Keypad Designer**, with its
 own installer. The app carries its own Python, so you don't need to install
 Python to use it. It keeps projects, backups, and the recipe library in
 `Documents\OMNI Keypad Designer` instead of `designer/`. To open that folder,
-click **File > Open Projects Folder**. To build the app, see
-[Build the desktop app](#build-the-desktop-app).
+click **Folder** next to **Save as**. The app's version is at the right of the
+status bar. The app has no menu bar, but it keeps the usual shortcuts: Ctrl+R
+or F5 reloads, Ctrl+Plus, Ctrl+Minus, and Ctrl+0 zoom, F11 toggles full
+screen, and F12 or Ctrl+Shift+I opens the developer tools. To build the app,
+see [Build the desktop app](#build-the-desktop-app).
 
 ## Design and deploy buttons
 
@@ -225,7 +228,8 @@ keeps it in `build/cache/`. To use another Python version, change
 - To build an unsigned installer, run `npm run installer`. The installer is
   `output/omni_keypad_designer_setup_v<version>.exe`.
 
-To try a build without touching your own projects, set
+To try a build without touching your own projects and settings, or alongside an
+installed copy, set
 `OMNI_KEYPAD_DATA_DIR` to another folder before you start the app.
 
 ### What the installer does

@@ -384,6 +384,7 @@ label.btn-outline { cursor: pointer; }
 #status.error { color: var(--white); }
 .statusbar .chip-error { padding: 1px 6px; }
 .last-deployed { white-space: nowrap; }
+.app-version { padding-left: 12px; border-left: 1px solid var(--grey); white-space: nowrap; }
 
 /* -- Modals ------------------------------------------------------------------------ */
 

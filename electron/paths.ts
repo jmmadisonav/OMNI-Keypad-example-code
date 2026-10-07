@@ -12,7 +12,11 @@ export const APP_NAME = 'OMNI Keypad Designer';
  * the Documents folder are, rather than left to Electron, which would name it
  * after package.json's "name".
  */
-export function userDataDir(appDataDir: string): string {
+export function userDataDir(appDataDir: string, env: NodeJS.ProcessEnv = process.env): string {
+  // A copy trying a build in its own data folder (see designerDataDir) gets
+  // its own profile too, and with it its own single-instance lock, so it runs
+  // alongside an installed copy instead of handing over to it.
+  if (env.OMNI_KEYPAD_DATA_DIR) { return path.join(env.OMNI_KEYPAD_DATA_DIR, 'app-profile'); }
   return path.join(appDataDir, APP_NAME);
 }
 

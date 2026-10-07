@@ -5,12 +5,14 @@ import { APP_NAME, designerDataDir, designerLocation, userDataDir } from './path
 
 describe('data folders', () => {
   it('are named after the app', () => {
-    expect(userDataDir('C:\\AppData')).toBe(path.join('C:\\AppData', 'OMNI Keypad Designer'));
+    expect(userDataDir('C:\\AppData', {})).toBe(path.join('C:\\AppData', 'OMNI Keypad Designer'));
     expect(designerDataDir('C:\\Docs', {})).toBe(path.join('C:\\Docs', APP_NAME));
   });
 
   it('can be moved with OMNI_KEYPAD_DATA_DIR', () => {
     expect(designerDataDir('C:\\Docs', { OMNI_KEYPAD_DATA_DIR: 'D:\\Try' })).toBe('D:\\Try');
+    // With its own profile, and so its own single-instance lock.
+    expect(userDataDir('C:\\AppData', { OMNI_KEYPAD_DATA_DIR: 'D:\\Try' })).toBe(path.join('D:\\Try', 'app-profile'));
   });
 });
 
