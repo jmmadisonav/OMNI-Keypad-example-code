@@ -1,6 +1,7 @@
 import base64
 import tempfile
 import threading
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -8,7 +9,7 @@ from unittest import mock
 from designer import keypad_ops
 from designer.keypad_ops import (BusyError, ButtonImages, ConflictError, DeployFailed, Layout,
                                  apply_layout,
-                                 DeployTimeout,
+                                 DeployTimeout, ModelMismatch,
                                  KeypadOps, apply_buttons, file_base)
 from keypad_design import DESIGN_PATH, Design
 from tests.fake_keypad import FakeKeypad
@@ -276,6 +277,40 @@ class KeypadOpsTests(unittest.TestCase):
         (self.backups / "loaded_20260102_000000.cpio").write_bytes(b"")
         self.assertEqual(self.ops.backups(),
                          ["loaded_20260102_000000.cpio", "backup_20260101_000000.cpio"])
+
+    def test_keypad_model_reads_the_model(self):
+        self.assertEqual(self.ops.keypad_model("127.0.0.1"), "OMNI-KP-8BV")
+
+    def test_keypad_model_of_unreachable_keypad_is_a_connection_error(self):
+        self.ops.port, self.ops.timeout = 1, 0.5
+        with self.assertRaises(ConnectionError):
+            self.ops.keypad_model("127.0.0.1")
+
+    def test_deploy_project_refuses_another_model_even_with_force(self):
+        self.keypad.params["/configuration/device/model"]["value"] = "OMNI-KP-6BV"
+        for force in (False, True):
+            with self.subTest(force=force), self.assertRaises(ModelMismatch) as caught:
+                self.ops.deploy_project("127.0.0.1", self.project(), original().fingerprint,
+                                        force=force, model="OMNI-KP-8BV")
+            self.assertEqual((caught.exception.expected, caught.exception.actual),
+                             ("OMNI-KP-8BV", "OMNI-KP-6BV"))
+        self.assertEqual(self.keypad.files[DESIGN_PATH], self.data)
+        self.assertEqual(list(self.backups.glob("backup_*")), [])
+
+    def test_model_is_checked_before_the_no_design_check(self):
+        self.keypad.ignore.add("getfile")
+        self.keypad.params["/configuration/device/model"]["value"] = "OMNI-KP-6B"
+        self.ops.timeout = 5
+        started = time.monotonic()
+        with self.assertRaises(ModelMismatch):
+            self.ops.deploy_project("127.0.0.1", self.project(), "", model="OMNI-KP-8BV")
+        self.assertLess(time.monotonic() - started, 2)      # No 5-second download wait.
+
+    def test_deploy_project_with_matching_model(self):
+        self.keypad.params["/configuration/device/model"]["value"] = "OMNI-KP-6BV"
+        result = self.ops.deploy_project("127.0.0.1", self.project(), original().fingerprint,
+                                         model="OMNI-KP-6BV")
+        self.assertTrue(result["backup"].startswith("backup_"))
 
 
 if __name__ == "__main__":

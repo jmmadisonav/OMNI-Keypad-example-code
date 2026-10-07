@@ -22,6 +22,8 @@ from pathlib import Path
 from hcontrol import DEFAULT_PORT, HControlClient, HControlError
 from keypad_design import DESIGN_PATH, IMAGE_SIZE, MAX_PAGES, Design, png_size
 
+from designer.models import DEFAULT_MODEL
+
 designs = importlib.import_module("03_upload_design")
 
 _BACKUP_NAME = re.compile(r"(backup|loaded)_\d{8}_\d{6}(_\d+)?\.cpio")
@@ -33,6 +35,15 @@ class ConflictError(Exception):
 
 class BusyError(Exception):
     """Another deploy or restore is running."""
+
+
+class ModelMismatch(Exception):
+    """The keypad is a different model from the one the project is for."""
+
+    def __init__(self, expected: str, actual: str):
+        super().__init__(f"the project is for an {expected}, but the keypad is an {actual}")
+        self.expected = expected
+        self.actual = actual
 
 
 class DeployTimeout(TimeoutError):
@@ -201,16 +212,36 @@ class KeypadOps:
         self._save(data, "loaded")
         return data
 
+    def keypad_model(self, host: str) -> str:
+        """Return the model the keypad reports, such as OMNI-KP-8BV."""
+        try:
+            client = HControlClient(host, self.port, timeout=min(self.timeout, 5))
+        except OSError as error:
+            raise ConnectionError(f"couldn't connect to the keypad at {host}: {error}") from None
+        with client as kp:
+            return str(kp.get("/configuration/device/model", fmt="string"))
+
     def deploy_project(self, host: str, design: Design, base_fingerprint: str,
-                       force: bool = False) -> dict:
+                       force: bool = False, model: str = DEFAULT_MODEL) -> dict:
         """Upload a whole project design to the keypad.
 
         Backs up the keypad's design first if it has one. A keypad with no
         design, for example after a factory reset, doesn't answer the
         download, so the upload goes ahead without a backup. If the keypad's
         design isn't the one the project last matched, refuse unless force.
+        Refuse a keypad of another model, even with force.
         """
         with self._exclusive():
+            try:
+                actual = self.keypad_model(host)      # Before anything slow or risky.
+            except TimeoutError:
+                # If the model query times out, check if the keypad is still alive.
+                if not self._answers(host):
+                    raise TimeoutError(f"the keypad at {host} stopped responding while it "
+                                       "sent its design. Nothing was uploaded.") from None
+                raise
+            if actual != model:
+                raise ModelMismatch(model, actual)
             try:
                 current = self._download(host)    # ConnectionError if unreachable.
             except TimeoutError:
