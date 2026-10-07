@@ -207,9 +207,18 @@ class KeypadOpsTests(unittest.TestCase):
                          result["fingerprint"])
         self.assertEqual(list(self.backups.glob("backup_*")), [])
 
-    def test_deploy_project_to_a_keypad_that_stops_answering_uploads_nothing(self):
+    def test_deploy_project_to_a_keypad_that_stalls_mid_download_uploads_nothing(self):
         # A slow or stalled keypad must not be mistaken for one with no design,
         # or its design would be replaced with no backup.
+        self.keypad.ignore.add("getfile")         # The model check still passes.
+        self.ops.timeout = 0.5
+        with mock.patch.object(self.ops, "_answers", return_value=False):
+            with self.assertRaisesRegex(TimeoutError, "while it sent its design"):
+                self.ops.deploy_project("127.0.0.1", self.project(), original().fingerprint)
+        self.assertEqual(self.keypad.files[DESIGN_PATH], self.data)
+        self.assertEqual(list(self.backups.glob("backup_*")), [])
+
+    def test_deploy_project_to_a_silent_keypad_uploads_nothing(self):
         self.keypad.ignore.update({"getfile", "get"})
         self.ops.timeout = 0.5
         with self.assertRaisesRegex(TimeoutError, "stopped responding"):
