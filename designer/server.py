@@ -15,7 +15,10 @@ import base64
 import binascii
 import datetime
 import json
+import os
+import socket
 import sys
+import threading
 import traceback
 import urllib.parse
 import webbrowser
@@ -61,9 +64,28 @@ def make_server(port: int, ops: KeypadOps, library: Library, graphics: GraphicsZ
     Handler.ops, Handler.library, Handler.graphics, Handler.projects, Handler.discover = (
         ops, library, graphics, projects, staticmethod(discover))
     Handler.backup_models = {}
-    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    server = _Server(("127.0.0.1", port), Handler)
     server.daemon_threads = True
     return server
+
+
+class _Server(ThreadingHTTPServer):
+    """An HTTP server that never shares its port.
+
+    HTTPServer sets SO_REUSEADDR so a restarted server can rebind at once.
+    On Windows that option also lets a second server bind a port that's in
+    use, and requests then reach whichever one Windows picks: a second
+    designer would talk to the first one's projects. SO_EXCLUSIVEADDRUSE
+    makes the bind fail instead, and Windows doesn't need SO_REUSEADDR to
+    rebind after a restart.
+    """
+
+    allow_reuse_address = os.name != "nt"
+
+    def server_bind(self):
+        if os.name == "nt":
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -365,20 +387,45 @@ def _field(body: dict, key: str, kind: type):
     return value
 
 
+def _exit_when_stdin_closes() -> None:
+    """Exit once standard input reaches its end.
+
+    The desktop app keeps a pipe to this server's standard input, and the
+    pipe closes whenever the app exits, even if it crashes, so the server
+    never outlives it and holds on to its port.
+    """
+    while sys.stdin.read(4096):
+        pass
+    os._exit(0)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--port", type=int, default=8044)
     parser.add_argument("--no-browser", action="store_true", help="don't open a browser")
+    parser.add_argument("--data-dir", type=Path, default=HERE,
+                        help="where to keep projects, backups, and the library (default: designer/)")
+    parser.add_argument("--any-port", action="store_true",
+                        help="if --port is in use, listen on a free port instead")
+    parser.add_argument("--exit-with-parent", action="store_true",
+                        help="stop when standard input closes, as when the app that started it exits")
     args = parser.parse_args()
+    data = args.data_dir
     try:
-        projects = ProjectStore(HERE / "projects")
+        projects = ProjectStore(data / "projects")
+        ops, library = KeypadOps(data / "backups"), Library(data / "library")
     except ValueError as error:
         sys.exit(f"The designer couldn't start: {error}")
-    try:
-        server = make_server(args.port, KeypadOps(HERE / "backups"), Library(HERE / "library"),
-                             GraphicsZip(), projects)
     except OSError as error:
-        sys.exit(f"Couldn't listen on port {args.port}: {error}. Try --port with another number.")
+        sys.exit(f"The designer couldn't create its folders in {data}: {error}")
+    try:
+        server = make_server(args.port, ops, library, GraphicsZip(), projects)
+    except OSError as error:
+        if not args.any_port:
+            sys.exit(f"Couldn't listen on port {args.port}: {error}. Try --port with another number.")
+        server = make_server(0, ops, library, GraphicsZip(), projects)
+    if args.exit_with_parent:
+        threading.Thread(target=_exit_when_stdin_closes, daemon=True).start()
     url = f"http://127.0.0.1:{server.server_address[1]}/"
     print(f"Button designer running at {url}. Press Ctrl+C to stop.", flush=True)
     if not args.no_browser:
