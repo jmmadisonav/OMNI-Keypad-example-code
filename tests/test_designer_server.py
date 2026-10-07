@@ -305,6 +305,62 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(self.request("POST", "/api/projects", body={})[0], 400)
         self.assertEqual(self.request("GET", "/api/nothing")[0], 404)
 
+    def test_models_route(self):
+        status, models = self.json_request("GET", "/api/models")
+        self.assertEqual(status, 200)
+        self.assertEqual([m["id"] for m in models], ["OMNI-KP-6B", "OMNI-KP-6BV", "OMNI-KP-8BV"])
+        self.assertEqual([m["name"] for m in models], ["6B", "6BV", "8BV"])
+        self.assertNotIn("template", models[0])
+
+    def test_new_project_with_model(self):
+        status, project = self.json_request("POST", "/api/projects",
+                                            {"name": "Lobby", "model": "OMNI-KP-6BV"})
+        self.assertEqual((status, project["model"]), (200, "OMNI-KP-6BV"))
+        self.assertEqual(len(project["config"]["pages"][0]["buttons"]), 6)
+
+    def test_new_project_with_unknown_model_is_400(self):
+        status, body = self.json_request("POST", "/api/projects", {"name": "Lobby", "model": "OMNI-KP-9X"})
+        self.assertEqual(status, 400, body)
+
+    def test_load_from_keypad_records_its_model(self):
+        self.assertEqual(self.from_keypad()["model"], "OMNI-KP-8BV")
+
+    def test_load_from_unsupported_keypad_is_400(self):
+        self.keypad.params["/configuration/device/model"]["value"] = "OMNI-KP-V"
+        status, body = self.json_request("POST", "/api/projects/from-keypad", {"host": "127.0.0.1"})
+        self.assertEqual(status, 400)
+        self.assertEqual(body["error"], "The keypad at 127.0.0.1 is an OMNI-KP-V. "
+                                        "The designer supports the 6B, 6BV, and 8BV.")
+        self.assertEqual(self.projects.list(), [])
+
+    def test_deploy_to_another_model_is_409(self):
+        self.json_request("POST", "/api/projects", {"name": "Lobby", "model": "OMNI-KP-6BV"})
+        status, body = self.json_request("POST", "/api/projects/Lobby/deploy",
+                                         {"host": "127.0.0.1", "force": True})
+        self.assertEqual((status, body.get("model")), (409, True))
+        self.assertEqual(body["error"], "This project is for a 6BV, but the keypad at 127.0.0.1 is an 8BV.")
+        self.assertEqual(self.keypad.files[DESIGN_PATH], self.data)
+
+    def test_old_project_deploys_to_an_8bv(self):
+        project = self.from_keypad()
+        meta = Path(self.projects.folder) / project["name"] / "designer.json"
+        data = json.loads(meta.read_text(encoding="utf-8"))
+        del data["model"]
+        meta.write_text(json.dumps(data), encoding="utf-8")
+        status, result = self.json_request(
+            "POST", f"/api/projects/{urllib.parse.quote(project['name'])}/deploy", {"host": "127.0.0.1"})
+        self.assertEqual(status, 200, result)
+
+    def test_deploy_project_with_unknown_model_is_400(self):
+        self.json_request("POST", "/api/projects", {"name": "Lobby"})
+        meta = Path(self.projects.folder) / "Lobby" / "designer.json"
+        data = json.loads(meta.read_text(encoding="utf-8"))
+        data["model"] = "OMNI-KP-9X"
+        meta.write_text(json.dumps(data), encoding="utf-8")
+        status, body = self.json_request("POST", "/api/projects/Lobby/deploy", {"host": "127.0.0.1"})
+        self.assertEqual(status, 400)
+        self.assertIn("OMNI-KP-9X", body["error"])
+
 
 if __name__ == "__main__":
     unittest.main()

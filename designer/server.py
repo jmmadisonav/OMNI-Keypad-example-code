@@ -29,8 +29,10 @@ if str(ROOT) not in sys.path:
 from hcontrol import HControlError, discover as hcontrol_discover  # noqa: E402
 from designer.assets import GraphicsZip  # noqa: E402
 from designer.keypad_ops import (BusyError, ButtonImages, ConflictError,  # noqa: E402
-                                 DeployFailed, DeployTimeout, KeypadOps, Layout)
+                                 DeployFailed, DeployTimeout, KeypadOps, Layout,
+                                 ModelMismatch)
 from designer.library import Library  # noqa: E402
+from designer.models import DEFAULT_MODEL  # noqa: E402
 from designer.projects import ProjectStore, project_name_for  # noqa: E402
 from keypad_design import Design  # noqa: E402
 
@@ -163,18 +165,28 @@ class _Handler(BaseHTTPRequestHandler):
         if route == ("POST", "design", "restore"):
             body = self._body()
             return self._json(self.ops.restore(self._host_from(body), _field(body, "backup", str)))
+        if route == ("GET", "models"):
+            return self._json([m.summary() for m in self.projects.models.values()])
         if route == ("GET", "projects"):
             return self._json(self.projects.list())
         if route == ("POST", "projects"):
             body = self._body()
-            return self._json(self.projects.new(_field(body, "name", str).strip(),
+            model = body.get("model") or DEFAULT_MODEL
+            if not isinstance(model, str):
+                raise ValueError("model must be a keypad model id, such as OMNI-KP-8BV")
+            return self._json(self.projects.new(_field(body, "name", str).strip(), model,
                                                 unique=bool(body.get("unique"))))
         if route == ("POST", "projects", "from-keypad"):
             body = self._body()
             host = self._host_from(body)
+            model = self.ops.keypad_model(host)
+            if model not in self.projects.models:
+                raise ValueError(f"The keypad at {host} is {_article(model)}. "
+                                 f"The designer supports the {_supported(self.projects)}.")
             data = self.ops.download(host)
             name = self.projects.unique_name(project_name_for(host))
-            return self._json(self.projects.import_design(name, data, Design.from_cpio(data).fingerprint))
+            return self._json(self.projects.import_design(
+                name, data, Design.from_cpio(data).fingerprint, model))
         if len(route) == 3 and route[1] == "projects":
             name = route[2]
             if method == "GET":
@@ -194,8 +206,20 @@ class _Handler(BaseHTTPRequestHandler):
             if action == "deploy":
                 host = self._host_from(body)
                 design = self.projects.design(name)
-                result = self.ops.deploy_project(host, design, self.projects.base_fingerprint(name),
-                                                 force=bool(body.get("force")))
+                model = self.projects.model_of(name)
+                if model not in self.projects.models:
+                    raise ValueError(f"{name} is for {_article(model)}, which the designer "
+                                     "doesn't know. Put its model file back in designer/models/.")
+                try:
+                    result = self.ops.deploy_project(
+                        host, design, self.projects.base_fingerprint(name),
+                        force=bool(body.get("force")), model=model)
+                except ModelMismatch as error:
+                    raise HttpError(409, f"This project is for "
+                                         f"{_article(_model_name(self.projects, error.expected))}, "
+                                         f"but the keypad at {host} is "
+                                         f"{_article(_model_name(self.projects, error.actual))}.",
+                                    model=True) from None
                 try:
                     self.projects.set_base(name, result["fingerprint"])
                 except OSError as error:
@@ -273,6 +297,21 @@ class _Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
 
+def _article(name: str) -> str:
+    """Return "an 8BV" or "a 6BV"."""
+    return f"{'an' if name[:1].upper() in '8AEIOU' else 'a'} {name}"
+
+
+def _model_name(projects: ProjectStore, model: str) -> str:
+    known = projects.models.get(model)
+    return known.name if known else model
+
+
+def _supported(projects: ProjectStore) -> str:
+    names = [m.name for m in projects.models.values()]
+    return ", ".join(names[:-1]) + f", and {names[-1]}" if len(names) > 1 else names[0]
+
+
 def _field(body: dict, key: str, kind: type):
     """Return body[key], or raise ValueError if it's missing or the wrong type."""
     value = body.get(key)
@@ -287,8 +326,12 @@ def main() -> None:
     parser.add_argument("--no-browser", action="store_true", help="don't open a browser")
     args = parser.parse_args()
     try:
+        projects = ProjectStore(HERE / "projects")
+    except ValueError as error:
+        sys.exit(f"The designer couldn't start: {error}")
+    try:
         server = make_server(args.port, KeypadOps(HERE / "backups"), Library(HERE / "library"),
-                             GraphicsZip(), ProjectStore(HERE / "projects"))
+                             GraphicsZip(), projects)
     except OSError as error:
         sys.exit(f"Couldn't listen on port {args.port}: {error}. Try --port with another number.")
     url = f"http://127.0.0.1:{server.server_address[1]}/"
