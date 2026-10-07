@@ -2,7 +2,7 @@
 // the library, and the deploy flow.
 
 import { getJson, sendJson, assetUrl } from "./api.js";
-import { GRID, buttonKey, recipeFromImages } from "./model.js";
+import { gridFor, buttonKey, recipeFromImages } from "./model.js";
 import { renderRecipe, toBase64, loadIcons } from "./render.js";
 import { createEditor } from "./editor.js";
 import {
@@ -12,9 +12,11 @@ import {
 
 const $ = (id) => document.getElementById(id);
 const projectUrl = (name) => `/api/projects/${encodeURIComponent(name)}`;
+const DEFAULT_MODEL = "OMNI-KP-8BV";
 
 const state = {
   catalog: null,
+  models: {},            // id -> { id, name, columns, rows, dial, faceplate, tested }
   project: null,         // { name, config, images: {name: base64}, recipes, baseFingerprint }
   projects: [],          // [{ name, saved }], newest first
   layout: null,          // Pages and page switching; see pages.js.
@@ -34,12 +36,19 @@ function setStatus(text, isError = false) {
   $("status").classList.toggle("error", isError);
 }
 
-function storage(action, value) {
+// Per-viewer conveniences: remembered keypad address and model.
+function recall(key) {
   try {
-    if (action === "get") return localStorage.getItem("designer.host") || "";
-    localStorage.setItem("designer.host", value);
-  } catch { /* Storage can be unavailable; the host just isn't remembered. */ }
-  return "";
+    return localStorage.getItem(key) || "";
+  } catch {
+    return "";                                 // Storage can be unavailable.
+  }
+}
+
+function remember(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch { /* Not remembered; nothing else depends on it. */ }
 }
 
 // -- Keypad view ----------------------------------------------------------------------
@@ -77,10 +86,14 @@ function renderKeypad() {
   keypad.innerHTML = "";
   if (!state.project) return;
   const page = sourcePage(state.pageId);
-  keypad.style.gridTemplateColumns = `repeat(${GRID.columns}, var(--cell))`;
+  const model = state.models[state.project.model];
+  const grid = gridFor(model, page.buttons.length);
+  $("faceplate").className = `faceplate faceplate--${model?.faceplate || "square"}`;
+  $("dial").hidden = !(model ? model.dial : "dial" in page);
+  keypad.style.gridTemplateColumns = `repeat(${grid.columns}, var(--cell))`;
   keypad.style.background = state.project.config.display?.panel_separator_color || "#000";
   const showOn = $("show-on").checked;
-  const count = Math.min(page.buttons.length, GRID.columns * GRID.rows);
+  const count = Math.min(page.buttons.length, grid.columns * grid.rows);
   for (let button = 1; button <= count; button++) {
     const key = buttonKey(state.pageId, button);
     const cell = document.createElement("button");
@@ -242,11 +255,14 @@ function showProject(project) {
   state.previews.clear();
   editor.setRecipe(null);
   $("save-recipe").disabled = true;
-  $("project-name").textContent = project.name;
+  const model = state.models[project.model];
+  $("project-name").textContent = `${project.name} · ${model ? model.name : project.model}`;
   renderTabs();
   renderKeypad();
   updateButtons();
   refreshProjects();
+  if (!model) setStatus(`${project.name} is for ${project.model}, which the designer doesn't know. ` +
+                        "You can edit it, but not deploy it.", true);
 }
 
 async function refreshProjects() {
@@ -278,11 +294,26 @@ function freeName(base) {
 
 async function newProject() {
   if (!confirmDiscard()) return;
-  const name = prompt("Project name (letters, digits, spaces, dashes, underscores):", freeName("Untitled"));
-  if (name === null) return;
+  const dialog = $("new-dialog");
+  $("new-name").value = freeName("Untitled");
+  $("new-model").replaceChildren(...Object.values(state.models).map((m) => {
+    const option = document.createElement("option");
+    option.value = m.id;
+    option.textContent = m.tested ? m.name : `${m.name} (untested)`;
+    return option;
+  }));
+  const last = recall("designer.model");
+  $("new-model").value = state.models[last] ? last : DEFAULT_MODEL;
+  dialog.returnValue = "";
+  dialog.showModal();
+  await new Promise((resolve) => dialog.addEventListener("close", resolve, { once: true }));
+  if (dialog.returnValue !== "create") return;
+  const name = $("new-name").value.trim();
+  const model = $("new-model").value;
   try {
-    showProject(await sendJson("POST", "/api/projects", { name: name.trim() }));
-    setStatus(`Created ${name.trim()}. Click a button to design it.`);
+    showProject(await sendJson("POST", "/api/projects", { name, model }));
+    remember("designer.model", model);
+    setStatus(`Created ${name} for the ${state.models[model].name}. Click a button to design it.`);
   } catch (error) {
     setStatus(error.message, true);
   }
@@ -362,7 +393,7 @@ async function loadFromKeypad() {
   setStatus(`Loading the design from ${host}…`);
   try {
     const project = await sendJson("POST", "/api/projects/from-keypad", { host });
-    storage("set", host);
+    remember("designer.host", host);
     showProject(project);
     refreshBackups();
     setStatus(`Loaded the design from ${host} as the project ${project.name}.`);
@@ -398,7 +429,7 @@ async function deploy(force = false) {
     setStatus(`Deploying ${state.project.name} to ${host}. A keypad with no design takes about ` +
               "15 seconds to check, and the keypad then restarts, which takes about 20 seconds…");
     const result = await sendJson("POST", `${projectUrl(state.project.name)}/deploy`, { host, force });
-    storage("set", host);
+    remember("designer.host", host);
     state.project.baseFingerprint = result.fingerprint;
     await refreshBackups(result.backup);
     setStatus(result.backup ? `Deployed. The keypad's previous design is saved as ${result.backup}.`
@@ -547,9 +578,10 @@ async function saveRecipe() {
 
 async function start() {
   try {
-    const [catalog, iconTags] = await Promise.all([
-      getJson("/api/assets"), getJson("/vendor/lucide/tags.json"), loadIcons()]);
+    const [catalog, iconTags, models] = await Promise.all([
+      getJson("/api/assets"), getJson("/vendor/lucide/tags.json"), getJson("/api/models"), loadIcons()]);
     state.catalog = catalog;
+    state.models = Object.fromEntries(models.map((m) => [m.id, m]));
     editor = createEditor({ root: $("editor"), catalog, iconTags, onChange: onEdit });
     editor.setRecipe(null);
     renderReadyMade();
@@ -557,7 +589,7 @@ async function start() {
   } catch (error) {
     return setStatus(`The designer couldn't start: ${error.message}`, true);
   }
-  $("host").value = storage("get");
+  $("host").value = recall("designer.host");
   refreshBackups();
   $("new").addEventListener("click", newProject);
   $("projects").addEventListener("change", openProject);
@@ -583,7 +615,7 @@ async function start() {
   const newest = state.projects[0]?.name;
   try {
     showProject(newest ? await getJson(projectUrl(newest))
-                       : await sendJson("POST", "/api/projects", { name: "Untitled", unique: true }));
+                       : await sendJson("POST", "/api/projects", { name: "Untitled", model: DEFAULT_MODEL, unique: true }));
   } catch (error) {
     setStatus(`Couldn't open ${newest || "a new project"}: ${error.message}. ` +
               "Choose another project in Open…, or click New.", true);

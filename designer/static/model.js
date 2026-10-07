@@ -4,9 +4,13 @@
 export const SIZE = 188;
 export const CENTRE = SIZE / 2;
 export const MAX_IMPORT = SIZE * 2;      // Dropped images are scaled down to this.
-// Button layout on the OMNI-KP-8BV screen: 4 across, 2 down, numbered left
-// to right along the top row first.
-export const GRID = { columns: 4, rows: 2 };
+// A keypad's button grid, numbered left to right along the top row first.
+// Without a known model, 6 buttons are 2 across (6B, 6BV) and 8 are 4 across (8BV).
+export function gridFor(model, buttonCount) {
+  if (model) return { columns: model.columns, rows: model.rows };
+  const columns = buttonCount <= 6 ? 2 : 4;
+  return { columns, rows: Math.ceil(buttonCount / columns) };
+}
 export const FONTS = ["Titillium Web", "Inter", "Roboto", "Oswald"];
 
 const OFF_GREY = "#9AA0A6";

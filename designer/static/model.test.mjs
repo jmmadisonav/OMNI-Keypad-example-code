@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   SIZE, CENTRE, buttonKey, newRecipe, defaultLayer, addLayer, updateLayer, removeLayer,
-  moveLayer, shapeFiles, recipeFromImages, searchIcons, fitWithin,
+  moveLayer, shapeFiles, recipeFromImages, searchIcons, fitWithin, gridFor,
 } from "./model.js";
 
 const catalog = {
@@ -72,4 +72,10 @@ test("fitWithin only scales down and keeps the ratio", () => {
   assert.deepEqual(fitWithin(4000, 2000, 376), { width: 376, height: 188 });
   assert.deepEqual(fitWithin(100, 50, 376), { width: 100, height: 50 });
   assert.deepEqual(fitWithin(5000, 1, 376), { width: 376, height: 1 });
+});
+
+test("gridFor uses the model, or guesses from the button count", () => {
+  assert.deepEqual(gridFor({ columns: 2, rows: 3 }, 6), { columns: 2, rows: 3 });
+  assert.deepEqual(gridFor(undefined, 8), { columns: 4, rows: 2 });
+  assert.deepEqual(gridFor(undefined, 6), { columns: 2, rows: 3 });
 });

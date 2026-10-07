@@ -38,9 +38,9 @@
         <button id="page-rename" type="button" disabled>Rename</button>
         <button id="page-delete" type="button" disabled>Delete</button>
       </div>
-      <div class="faceplate">
+      <div id="faceplate" class="faceplate faceplate--square">
         <div id="keypad" class="keypad"></div>
-        <div class="dial" aria-hidden="true"><div class="knob"></div></div>
+        <div id="dial" class="dial" aria-hidden="true"><div class="knob"></div></div>
       </div>
       <label class="toggle"><input id="show-on" type="checkbox"> Show ON state</label>
       <label class="goto">Go to page <select id="goto" disabled></select></label>
@@ -54,5 +54,16 @@
       <div id="ready-made" class="thumbs"></div>
     </section>
   </main>
+  <dialog id="new-dialog" aria-labelledby="new-title">
+    <form method="dialog" class="new-form">
+      <h2 id="new-title">New project</h2>
+      <label>Name <input id="new-name" required spellcheck="false" maxlength="64"></label>
+      <label>Keypad <select id="new-model"></select></label>
+      <div class="dialog-buttons">
+        <button value="cancel" formnovalidate>Cancel</button>
+        <button value="create" class="primary">Create</button>
+      </div>
+    </form>
+  </dialog>
 </body>
 </html>
