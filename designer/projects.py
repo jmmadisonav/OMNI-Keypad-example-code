@@ -50,7 +50,7 @@ class ProjectStore:
             except ValueError:
                 continue                         # Temporary or hand-made folders.
             found.append((config.stat().st_mtime, path.name))
-        return [{"name": name,
+        return [{"name": name, "model": self._meta(name)["model"],
                  "saved": datetime.datetime.fromtimestamp(mtime).isoformat(timespec="seconds")}
                 for mtime, name in sorted(found, reverse=True)]
 
@@ -88,6 +88,7 @@ class ProjectStore:
             "recipes": meta["recipes"],
             "baseFingerprint": meta["baseFingerprint"],
             "model": meta["model"],
+            "lastDeployed": meta["lastDeployed"],
         }
 
     def design(self, name: str) -> Design:
@@ -141,10 +142,13 @@ class ProjectStore:
             self._write(name, design, _empty_meta(base_fingerprint, model))
             return self.open(name)
 
-    def set_base(self, name: str, fingerprint: str) -> None:
+    def set_base(self, name: str, fingerprint: str, deployed: str | None = None) -> None:
+        """Record the keypad design the project matches, and when it was deployed if it was."""
         with self._lock:
             meta = self._meta(name)
             meta["baseFingerprint"] = fingerprint
+            if deployed is not None:
+                meta["lastDeployed"] = deployed
             (self._path(name) / _META).write_text(json.dumps(meta, indent=2) + "\n",
                                                   encoding="utf-8")
 
@@ -197,7 +201,8 @@ class ProjectStore:
 
 
 def _empty_meta(base_fingerprint: str, model: str = DEFAULT_MODEL) -> dict:
-    return {"version": 1, "model": model, "baseFingerprint": base_fingerprint, "recipes": {}}
+    return {"version": 1, "model": model, "baseFingerprint": base_fingerprint, "recipes": {},
+            "lastDeployed": ""}
 
 
 def _clean_recipes(recipes: dict, design: Design) -> dict:

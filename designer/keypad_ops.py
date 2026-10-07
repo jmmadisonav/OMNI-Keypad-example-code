@@ -26,7 +26,9 @@ from designer.models import DEFAULT_MODEL
 
 designs = importlib.import_module("03_upload_design")
 
-_BACKUP_NAME = re.compile(r"(backup|loaded)_\d{8}_\d{6}(_\d+)?\.cpio")
+_BACKUP_NAME = re.compile(r"(backup|loaded|manual)_(\d{8}_\d{6})(_\d+)?\.cpio")
+# What made each kind of backup: a deploy, Load from keypad, or Back up keypad now.
+_BACKUP_KINDS = {"backup": "deploy", "loaded": "loaded", "manual": "manual"}
 
 
 class ConflictError(Exception):
@@ -212,6 +214,10 @@ class KeypadOps:
         self._save(data, "loaded")
         return data
 
+    def back_up(self, host: str) -> str:
+        """Save the keypad's design as manual_<time>.cpio, and return the file name."""
+        return self._save(self._download(host), "manual").name
+
     def keypad_model(self, host: str) -> str:
         """Return the model the keypad reports, such as OMNI-KP-8BV."""
         try:
@@ -295,6 +301,17 @@ class KeypadOps:
     def backups(self) -> list[str]:
         names = [p.name for p in self.backup_dir.glob("*.cpio") if _BACKUP_NAME.fullmatch(p.name)]
         return sorted(names, key=lambda n: n.split("_", 1)[1], reverse=True)
+
+    def backup_info(self) -> list[dict]:
+        """Describe each backup, newest first: name, kind, size in bytes, and when it was saved."""
+        result = []
+        for name in self.backups():
+            match = _BACKUP_NAME.fullmatch(name)
+            saved = datetime.datetime.strptime(match[2], "%Y%m%d_%H%M%S")
+            result.append({"name": name, "kind": _BACKUP_KINDS[match[1]],
+                           "size": (self.backup_dir / name).stat().st_size,
+                           "saved": saved.isoformat(timespec="seconds")})
+        return result
 
     # -- Helpers -----------------------------------------------------------------
 

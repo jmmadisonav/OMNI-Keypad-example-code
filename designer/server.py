@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import base64
 import binascii
+import datetime
 import json
 import sys
 import traceback
@@ -59,6 +60,7 @@ def make_server(port: int, ops: KeypadOps, library: Library, graphics: GraphicsZ
         pass
     Handler.ops, Handler.library, Handler.graphics, Handler.projects, Handler.discover = (
         ops, library, graphics, projects, staticmethod(discover))
+    Handler.backup_models = {}
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     server.daemon_threads = True
     return server
@@ -69,6 +71,7 @@ class _Handler(BaseHTTPRequestHandler):
     library: Library
     graphics: GraphicsZip
     projects: ProjectStore
+    backup_models: dict[str, str | None]    # Backup file name -> model. Backups don't change.
 
     def do_GET(self):
         self._handle("GET")
@@ -161,7 +164,10 @@ class _Handler(BaseHTTPRequestHandler):
             return self._json([{k: d.get(k, "") for k in ("ip", "name", "model", "version")}
                                for d in found])
         if route == ("GET", "backups"):
-            return self._json(self.ops.backups())
+            return self._json([{**info, "model": self._backup_model(info["name"])}
+                               for info in self.ops.backup_info()])
+        if route == ("POST", "backups"):
+            return self._json({"name": self.ops.back_up(self._host_from(self._body()))})
         if route == ("POST", "design", "restore"):
             body = self._body()
             host = self._host_from(body)
@@ -231,8 +237,9 @@ class _Handler(BaseHTTPRequestHandler):
                                          f"but the keypad at {host} is "
                                          f"{_article(_model_name(self.projects, error.actual))}.",
                                     model=True) from None
+                result["deployed"] = datetime.datetime.now().isoformat(timespec="seconds")
                 try:
-                    self.projects.set_base(name, result["fingerprint"])
+                    self.projects.set_base(name, result["fingerprint"], deployed=result["deployed"])
                 except OSError as error:
                     raise HttpError(500, f"the keypad at {host} has the new design, but the "
                                          f"designer couldn't record that in {name}: {error}") from None
@@ -254,6 +261,15 @@ class _Handler(BaseHTTPRequestHandler):
                 self.library.delete(name)
                 return self._json({})
         raise HttpError(404, f"no such API: {method} {path}")
+
+    def _backup_model(self, name: str) -> str | None:
+        """Return the model a backup is for, reading each backup file only once."""
+        if name not in self.backup_models:
+            try:
+                self.backup_models[name] = _backup_model(self.projects, self.ops.backup_data(name))
+            except (OSError, ValueError, KeyError, IndexError):
+                self.backup_models[name] = None   # Not a design this designer can read.
+        return self.backup_models[name]
 
     # -- Requests and responses ---------------------------------------------------------
 

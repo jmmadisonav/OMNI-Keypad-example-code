@@ -165,6 +165,14 @@ class ProjectStoreTests(unittest.TestCase):
         project = self.store.open("Lobby")
         self.assertEqual((project["baseFingerprint"], project["recipes"]), ("f" * 32, {"1-1": RECIPE}))
 
+    def test_set_base_can_record_when_the_project_was_deployed(self):
+        self.store.new("Lobby")
+        self.assertEqual(self.store.open("Lobby")["lastDeployed"], "")
+        self.store.set_base("Lobby", "f" * 32, deployed="2026-10-07T14:59:41")
+        self.assertEqual(self.store.open("Lobby")["lastDeployed"], "2026-10-07T14:59:41")
+        self.store.set_base("Lobby", "e" * 32)
+        self.assertEqual(self.store.open("Lobby")["lastDeployed"], "2026-10-07T14:59:41")
+
     def test_list_is_newest_first_and_skips_other_folders(self):
         self.store.new("Old")
         time.sleep(0.05)
@@ -172,6 +180,7 @@ class ProjectStoreTests(unittest.TestCase):
         (self.folder / ".leftover.tmp").mkdir()
         (self.folder / "not a project").mkdir()
         self.assertEqual([p["name"] for p in self.store.list()], ["New", "Old"])
+        self.assertEqual(self.store.list()[0]["model"], "OMNI-KP-8BV")
         self.assertRegex(self.store.list()[0]["saved"], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d$")
 
     def test_unique_name_adds_a_number(self):

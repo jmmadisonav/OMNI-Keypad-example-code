@@ -302,6 +302,21 @@ class KeypadOpsTests(unittest.TestCase):
         self.assertEqual(self.ops.backups(),
                          ["loaded_20260102_000000.cpio", "backup_20260101_000000.cpio"])
 
+    def test_backup_info_describes_each_backup(self):
+        (self.backups / "backup_20260101_000000.cpio").write_bytes(b"abc")
+        (self.backups / "manual_20260103_101500_1.cpio").write_bytes(b"abcde")
+        self.assertEqual(self.ops.backup_info(), [
+            {"name": "manual_20260103_101500_1.cpio", "kind": "manual", "size": 5,
+             "saved": "2026-01-03T10:15:00"},
+            {"name": "backup_20260101_000000.cpio", "kind": "deploy", "size": 3,
+             "saved": "2026-01-01T00:00:00"}])
+
+    def test_back_up_saves_the_keypad_design_as_a_manual_backup(self):
+        name = self.ops.back_up("127.0.0.1")
+        self.assertRegex(name, r"^manual_\d{8}_\d{6}\.cpio$")
+        self.assertEqual((self.backups / name).read_bytes(), self.data)
+        self.assertEqual(self.ops.backup_data(name), self.data)
+
     def test_keypad_model_reads_the_model(self):
         self.assertEqual(self.ops.keypad_model("127.0.0.1"), "OMNI-KP-8BV")
 

@@ -177,7 +177,31 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(Design.from_cpio(self.keypad.files[DESIGN_PATH]).fingerprint, result["fingerprint"])
         self.assertTrue(result["backup"].startswith("backup_"))
         self.assertEqual(self.projects.base_fingerprint(project["name"]), result["fingerprint"])
-        self.assertIn(result["backup"], self.json_request("GET", "/api/backups")[1])
+        backups = self.json_request("GET", "/api/backups")[1]
+        self.assertIn(result["backup"], [b["name"] for b in backups])
+        reopened = self.json_request("GET", f"/api/projects/{urllib.parse.quote(project['name'])}")[1]
+        self.assertEqual(reopened["lastDeployed"], result["deployed"])
+
+    def test_backups_list_kind_size_date_and_model(self):
+        self.from_keypad()                       # Saves loaded_<time>.cpio.
+        status, backups = self.json_request("GET", "/api/backups")
+        self.assertEqual(status, 200, backups)
+        self.assertEqual(len(backups), 1)
+        backup = backups[0]
+        self.assertEqual((backup["kind"], backup["size"], backup["model"]),
+                         ("loaded", len(self.data), "OMNI-KP-8BV"))
+        self.assertRegex(backup["saved"], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d$")
+
+    def test_back_up_now_saves_a_manual_backup(self):
+        status, result = self.json_request("POST", "/api/backups", {"host": "127.0.0.1"})
+        self.assertEqual(status, 200, result)
+        self.assertTrue(result["name"].startswith("manual_"))
+        self.assertEqual([b["name"] for b in self.json_request("GET", "/api/backups")[1]],
+                         [result["name"]])
+
+    def test_back_up_now_needs_a_host(self):
+        status, result = self.json_request("POST", "/api/backups", {})
+        self.assertEqual(status, 400, result)
 
     def test_deploy_new_project_to_keypad_without_design(self):
         self.keypad.ignore.add("getfile")
@@ -296,7 +320,7 @@ class ServerTests(unittest.TestCase):
             self.assertEqual(response.status, 200)
 
     def test_programming_errors_are_500_not_400(self):
-        with mock.patch.object(self.ops, "backups", side_effect=TypeError("bug")), \
+        with mock.patch.object(self.ops, "backup_info", side_effect=TypeError("bug")), \
                 mock.patch("traceback.print_exc"):
             status, body = self.json_request("GET", "/api/backups")
         self.assertEqual(status, 500)
