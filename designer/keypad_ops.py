@@ -218,8 +218,11 @@ class KeypadOps:
             client = HControlClient(host, self.port, timeout=min(self.timeout, 5))
         except OSError as error:
             raise ConnectionError(f"couldn't connect to the keypad at {host}: {error}") from None
-        with client as kp:
-            return str(kp.get("/configuration/device/model", fmt="string"))
+        try:
+            with client as kp:
+                return str(kp.get("/configuration/device/model", fmt="string"))
+        except TimeoutError:
+            raise TimeoutError(f"the keypad at {host} stopped responding") from None
 
     def deploy_project(self, host: str, design: Design, base_fingerprint: str,
                        force: bool = False, model: str = DEFAULT_MODEL) -> dict:

@@ -286,6 +286,12 @@ class KeypadOpsTests(unittest.TestCase):
         with self.assertRaises(ConnectionError):
             self.ops.keypad_model("127.0.0.1")
 
+    def test_keypad_model_of_silent_keypad_says_it_stopped_responding(self):
+        self.keypad.ignore.add("get")
+        self.ops.timeout = 0.5
+        with self.assertRaisesRegex(TimeoutError, "127.0.0.1 stopped responding"):
+            self.ops.keypad_model("127.0.0.1")
+
     def test_deploy_project_refuses_another_model_even_with_force(self):
         self.keypad.params["/configuration/device/model"]["value"] = "OMNI-KP-6BV"
         for force in (False, True):
