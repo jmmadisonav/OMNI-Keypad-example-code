@@ -55,6 +55,26 @@ class UploadDesignTests(KeypadTestCase):
         self.assertEqual(backup.resolve(), backups[0].resolve())
         self.assertEqual(backups[0].read_bytes(), self.original)
 
+    def test_backup_timeout_suggests_no_backup(self):
+        # After a factory reset, the keypad never answers getfile for the design.
+        self.keypad.ignore.add("getfile")
+        with self.assertRaisesRegex(TimeoutError, "--no-backup"):
+            designs.backup(self.kp, self.tmp / "b.cpio")
+
+    def test_deploy_without_backup_uploads_to_a_reset_keypad(self):
+        self.keypad.ignore.add("getfile")
+        del self.keypad.files[DESIGN_PATH]
+        design = Design.from_cpio(self.original)
+        data = design.to_cpio()
+        self.keypad.params["/configuration/device/fingerprint"]["value"] = design.fingerprint
+        cwd = Path.cwd()
+        os.chdir(self.tmp)
+        self.addCleanup(os.chdir, cwd)
+        backup = designs.deploy("127.0.0.1", self.keypad.port, data=data, backup_first=False)
+        self.assertIsNone(backup)
+        self.assertEqual(self.keypad.files[DESIGN_PATH], data)
+        self.assertEqual(list(self.tmp.glob("backup_*")), [])
+
     def test_wait_for_design_retries_after_error_replies(self):
         # While it restarts, the keypad can answer with an error instead of a value.
         del self.keypad.params["/configuration/device/fingerprint"]

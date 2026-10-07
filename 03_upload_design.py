@@ -7,12 +7,14 @@ the file /project/project.cpio on the keypad, and uploading a new one
 redeploys the keypad. There's no way to change a single image; every change
 uploads the whole design.
 
-Every command that writes to the keypad saves a backup first.
+Every command that writes to the keypad saves a backup first. After a
+factory reset the keypad has no design to back up, so pass --no-backup to
+upload or restore.
 
 Usage:
     python 03_upload_design.py backup [FILE.cpio]
-    python 03_upload_design.py upload FOLDER
-    python 03_upload_design.py restore FILE.cpio
+    python 03_upload_design.py upload [--no-backup] FOLDER
+    python 03_upload_design.py restore [--no-backup] FILE.cpio
     python 03_upload_design.py set-image --page P --button B [--off PNG] [--on PNG] [--alt PNG]
     python 03_upload_design.py make-third-party
 
@@ -34,7 +36,13 @@ from keypad_design import DESIGN_PATH, Design
 
 def backup(kp: HControlClient, target: Path | None = None) -> Path:
     """Download the running design to a .cpio file and an unpacked folder."""
-    data = kp.get_file(DESIGN_PATH)
+    try:
+        data = kp.get_file(DESIGN_PATH)
+    except TimeoutError as error:
+        # The keypad doesn't answer at all when it has no design to send.
+        raise TimeoutError(
+            f"{error}. The keypad might have no design loaded, for example after "
+            "a factory reset. To upload without a backup, add --no-backup.") from None
     if target is None:
         target = Path(f"backup_{datetime.datetime.now():%Y%m%d_%H%M%S}.cpio")
     target.write_bytes(data)
@@ -71,12 +79,13 @@ def wait_for_design(host: str, port: int, fingerprint: str, timeout: float = 90)
 
 
 def deploy(host: str, port: int, design: Design | None = None,
-           data: bytes | None = None) -> Path:
+           data: bytes | None = None, backup_first: bool = True) -> Path | None:
     """Back up the current design, upload a new one, and wait until it runs.
 
     Pass either a Design (which gets a new fingerprint) or packed data from
     a backup file. Return the path of the backup of the design that was running
-    before, so you can restore it.
+    before, so you can restore it. Pass backup_first=False to skip the backup,
+    for example when the keypad has no design; deploy() then returns None.
     """
     if design is not None:
         data = design.to_cpio()          # Sets a new fingerprint.
@@ -87,7 +96,7 @@ def deploy(host: str, port: int, design: Design | None = None,
         raise ValueError("deploy() needs a design or packed data")
     # Transfers are slow; allow more time per reply than the default.
     with HControlClient(host, port, timeout=15) as kp:
-        backup_path = backup(kp)
+        backup_path = backup(kp) if backup_first else None
         upload(kp, data)
     wait_for_design(host, port, fingerprint)
     return backup_path
@@ -100,8 +109,11 @@ def main() -> None:
     parser.add_argument("-v", "--verbose", action="store_true", help="show protocol traffic")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("backup").add_argument("file", nargs="?", type=Path)
-    commands.add_parser("upload").add_argument("folder", type=Path)
-    commands.add_parser("restore").add_argument("file", type=Path)
+    no_backup = argparse.ArgumentParser(add_help=False)
+    no_backup.add_argument("--no-backup", action="store_true",
+                           help="don't back up the current design first")
+    commands.add_parser("upload", parents=[no_backup]).add_argument("folder", type=Path)
+    commands.add_parser("restore", parents=[no_backup]).add_argument("file", type=Path)
     image = commands.add_parser("set-image")
     image.add_argument("--page", type=int, required=True)
     image.add_argument("--button", type=int, required=True)
@@ -124,9 +136,11 @@ def main() -> None:
         sys.exit("Give at least one of --off, --on, or --alt.")
 
     if args.command == "upload":
-        deploy(host, args.port, design=Design.load(args.folder))
+        deploy(host, args.port, design=Design.load(args.folder),
+               backup_first=not args.no_backup)
     elif args.command == "restore":
-        deploy(host, args.port, data=args.file.read_bytes())
+        deploy(host, args.port, data=args.file.read_bytes(),
+               backup_first=not args.no_backup)
     else:
         with HControlClient(host, args.port, timeout=15) as kp:
             if args.command == "backup":
