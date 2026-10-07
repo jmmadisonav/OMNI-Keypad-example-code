@@ -67,7 +67,7 @@ export const HCONTROL_NOTES = [
   { title: "Interleaving", text: "A publish can arrive between your request and its reply, so match each reply by its command and path." },
   { title: "Use string format", text: "Include \"format\":\"string\" so action and state use names (PUSH, ON). Without it, they're indexes, for example 2 for ON." },
   { title: "Feedback is up to you", text: "Pressing a button doesn't change its state. Your code sets state to show feedback." },
-  { title: "Page-switch keys", text: "A key with a Go to page link still sends PUSH and RELEASE. The keypad then changes page by itself and publishes the new page name on /settings/currentpage. To change pages yourself, set /settings/currentpage to a page name." },
+  { title: "Page-switch buttons", text: "A button with a Go to page link still sends PUSH and RELEASE. The keypad then changes page by itself and publishes the new page name on /settings/currentpage. To change pages yourself, set /settings/currentpage to a page name." },
   { title: "Paths use numbers", text: "Paths use page and button numbers, not names. Deleting a page renumbers the pages after it." },
   { title: "Redeploying", text: "Deploying a design drops every connection and resets button states. Your code needs to reconnect and subscribe again." },
   { title: "Unbound controls only", text: "Only controls that aren't bound to an OMNI device are available over HControl." },

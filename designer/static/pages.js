@@ -70,7 +70,7 @@ export function setDestination(layout, pageId, button, targetId) {
   return { ...layout, destinations };
 }
 
-// Swap two buttons' page links, as when you drag one key onto another. A
+// Swap two buttons' page links, as when you drag one button onto another. A
 // link that would then point at its own page is dropped.
 export function swapDestinations(layout, a, b) {
   const destinations = { ...layout.destinations };

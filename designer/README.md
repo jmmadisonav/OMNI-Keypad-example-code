@@ -51,18 +51,18 @@ see [Build the desktop app](#build-the-desktop-app).
    name and keypad model. To work on a keypad's current design, enter its IP
    address, or click **Find**, and click **Load**. That saves the design as a
    new project named after the keypad, for example `172-17-0-55 2026-10-06`.
-1. Click a key on the keypad view. The **Button** tab shows its OFF and ON
+1. Click a button on the keypad view. The **Button** tab shows its OFF and ON
    canvases and its layers. A button that wasn't made in the designer opens
    as one Image layer that holds its existing artwork.
 1. Add layers with **+ Shape**, **+ Icon**, **+ Text**, and **+ Image**, or
    click **Quick button** to build a shape, an icon, and a label in one step.
    To move a layer, drag it on either canvas or change **X** and **Y**. To
-   check the ON images on every key, click **ON** under the keypad view.
+   check the ON images on every button, click **ON** under the keypad view.
 
    A shape uses a colour from Keypad Graphics. To use your own OFF and ON
    colours instead, click **+** after the colour swatches. The designer
    recolours the set's grey artwork, so the shape keeps its shading.
-1. Repeat for other keys and pages. A red square marks each changed key, and
+1. Repeat for other buttons and pages. A red square marks each changed button, and
    one next to the project name means there are unsaved changes.
 1. Click **Save**. You don't need a keypad for any of these steps.
 1. To put the project on a keypad, enter its IP address and click **Deploy**.
@@ -73,7 +73,7 @@ To undo a change, press Ctrl+Z. To redo it, press Ctrl+Y or Ctrl+Shift+Z. You
 can undo every change since you last saved or opened the project. In a text
 field, Ctrl+Z undoes your typing in that field instead.
 
-To swap two keys, drag one onto the other. The artwork, the button name, and
+To swap two buttons, drag one onto the other. The artwork, the button name, and
 the page link move. The control settings, such as the HControl path, stay with
 each slot.
 
@@ -107,7 +107,7 @@ pages, use the tabs:
 - To delete the current page, click **×** on its tab. Buttons that switch to
   it stop switching pages.
 
-To show another page while you drag a key, drag it over that page's tab.
+To show another page while you drag a button, drag it over that page's tab.
 
 To make a button switch pages, select the button, and then choose a page in
 **Go to page**. The keypad switches pages by itself, without any app running.
@@ -171,8 +171,8 @@ the command line, for example
 To keep a button's layers so you can change them later, click **Save to
 library** and give it a name. Recipes are saved in `designer/library/`. To use
 a recipe, open the **Library** tab, and then click the recipe to apply it to
-the selected key, or drag it onto any key. Applying a recipe replaces the
-key's layers and name, and keeps its page link.
+the selected button, or drag it onto any button. Applying a recipe replaces
+the button's layers and name, and keeps its page link.
 
 The recipe name also names the image files on the keypad, for example
 `HDMI_1_OFF.png`. Buttons that use the same recipe share the same files. To
@@ -183,10 +183,10 @@ change the file names for one button, edit its **Button name**.
 ## Program the keypad from your own code
 
 The **HControl** drawer under the keypad view shows the strings your own code
-sends to the keypad and the replies to expect. To see them for a key, select
-the key. The strings cover that key's page and button numbers: subscribing to
+sends to the keypad and the replies to expect. To see them for a button,
+select the button. The strings cover that button's page and button numbers: subscribing to
 presses, getting and setting the feedback state, and enabling or disabling the
-button. A key with a page link also shows how to follow page changes, and
+button. A button with a page link also shows how to follow page changes, and
 models with a dial show the dial and LED ring paths. The **Notes** pane
 explains the protocol rules.
 

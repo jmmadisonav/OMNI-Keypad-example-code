@@ -166,7 +166,7 @@ async function setEdit(pageId, button, recipe) {
 // Edits are immutable recipes, so copying the maps is enough.
 const history = { undo: [], redo: [] };
 const HISTORY_LIMIT = 200;
-const MERGE_MS = 800;        // Changes to one key this close together undo as one, like a slider drag.
+const MERGE_MS = 800;        // Changes to one button this close together undo as one, like a slider drag.
 let lastChange = { key: null, time: 0 };
 
 function snapshot() {
@@ -269,7 +269,7 @@ function renderKeypad() {
     cell.type = "button";
     cell.className = "key";
     cell.draggable = true;
-    cell.setAttribute("aria-label", `${pageName(state.layout, pageId)} key ${button}`);
+    cell.setAttribute("aria-label", `${pageName(state.layout, pageId)} button ${button}`);
     cell.classList.toggle("blank", isKeyBlank(pageId, button));
     cell.classList.toggle("selected", state.selected?.pageId === pageId && state.selected?.button === button);
     const src = faceImage(pageId, button);
@@ -329,7 +329,7 @@ function setShowOn(on) {
 
 async function swapKeys(a, b) {
   if (a.pageId === b.pageId && a.button === b.button) return;
-  record(`swapping keys ${a.button} and ${b.button}`);
+  record(`swapping buttons ${a.button} and ${b.button}`);
   const ra = recipeFor(a.pageId, a.button);
   const rb = recipeFor(b.pageId, b.button);
   state.layout = swapDestinations(state.layout, a, b);
@@ -340,8 +340,8 @@ async function swapKeys(a, b) {
   setEdit(a.pageId, a.button, rb);
   await setEdit(b.pageId, b.button, ra);
   renderSelection();
-  const where = a.pageId === b.pageId ? `keys ${a.button} and ${b.button}`
-    : `${pageName(state.layout, a.pageId)} key ${a.button} and ${pageName(state.layout, b.pageId)} key ${b.button}`;
+  const where = a.pageId === b.pageId ? `buttons ${a.button} and ${b.button}`
+    : `${pageName(state.layout, a.pageId)} button ${a.button} and ${pageName(state.layout, b.pageId)} button ${b.button}`;
   setStatus(`Swapped artwork and page link between ${where}. Control settings stay with each slot.`);
 }
 
@@ -493,7 +493,7 @@ async function onDeletePage() {
     `${p.name}: /page${number + i + 1}/… becomes /page${number + i}/…`);
   const ok = await confirmModal({
     title: "Delete page",
-    body: `Delete ${name} and its buttons? Keys that link to it lose their page link.`,
+    body: `Delete ${name} and its buttons? Buttons that link to it lose their page link.`,
     list: after,
     note: after.length ? "HControl paths use page numbers, for example /page3/button1/action. Apps that use paths for the renumbered pages need updating." : "",
     confirm: "Delete page",
@@ -537,9 +537,9 @@ function renderSelectionHead() {
   const number = pageNumber(state.layout, sel.pageId);
   $("sel-thumb").src = faceImage(sel.pageId, sel.button) || "data:,";
   $("sel-thumb").hidden = isKeyBlank(sel.pageId, sel.button);
-  $("sel-overline").textContent = `Key ${sel.button} · ${pageName(state.layout, sel.pageId)} · /page${number}/button${sel.button}`;
+  $("sel-overline").textContent = `Button ${sel.button} · ${pageName(state.layout, sel.pageId)} · /page${number}/button${sel.button}`;
   const name = buttonName(sel.pageId, sel.button);
-  $("sel-name").textContent = name || `Key ${sel.button}`;
+  $("sel-name").textContent = name || `Button ${sel.button}`;
   $("sel-changed").hidden = !isChanged(keyOf(sel.pageId, sel.button));
   renderNameHint(name);
 }
@@ -580,7 +580,7 @@ function onNameInput() {
 function onGoToChange() {
   const sel = state.selected;
   if (!sel) return;
-  record(`the page link on key ${sel.button}`);
+  record(`the page link on button ${sel.button}`);
   state.linkChanged.add(keyOf(sel.pageId, sel.button));
   changeLayout(setDestination(state.layout, sel.pageId, sel.button, $("goto").value || null));
 }
@@ -588,17 +588,17 @@ function onGoToChange() {
 function onEdit(recipe) {
   const sel = state.selected;
   if (!sel) return;
-  record(`the change to key ${sel.button}`, `edit ${keyOf(sel.pageId, sel.button)}`);
+  record(`the change to button ${sel.button}`, `edit ${keyOf(sel.pageId, sel.button)}`);
   setEdit(sel.pageId, sel.button, recipe);
 }
 
 function clearLayers() {
   const sel = state.selected;
   const recipe = { ...editor.getRecipe(), layers: [] };
-  record(`clearing key ${sel.button}`);
+  record(`clearing button ${sel.button}`);
   editor.setRecipe(recipe);
   setEdit(sel.pageId, sel.button, recipe);
-  setStatus(`Cleared the layers on key ${sel.button}. It's now a blank button.`);
+  setStatus(`Cleared the layers on button ${sel.button}. It's now blank.`);
 }
 
 // -- HControl drawer -------------------------------------------------------------------
@@ -655,7 +655,7 @@ function renderHControl() {
     const target = destinationOf(state.layout, sel.pageId, sel.button);
     groups(buttonGroups({ page, button: sel.button, pageName: name, target: target ? pageName(state.layout, target) : "" }));
   } else {
-    comment("Select a key on the keypad to see its strings.");
+    comment("Select a button on the keypad to see its strings.");
   }
   if (dial) {
     rows.push(`<div class="code-row gap"></div>`);
@@ -663,7 +663,7 @@ function renderHControl() {
     groups(pageControlGroups(page));
   }
   $("hc-code").innerHTML = rows.join("");
-  $("drawer-path").textContent = sel ? `/page${page}/button${sel.button} · Key ${sel.button} · ${name}` : name;
+  $("drawer-path").textContent = sel ? `/page${page}/button${sel.button} · Button ${sel.button} · ${name}` : name;
   $("drawer-warn").hidden = !state.pagesChanged;
   $("copy-all").disabled = !drawerLines.length;
 }
@@ -787,7 +787,7 @@ const savedRecipe = (name) => async () => getJson(`/api/library/${encodeURICompo
 // Replace a button's layers and name with a recipe. Its page link stays.
 async function applyRecipe(get, pageId, button) {
   if (!pageId) {
-    if (!state.selected) return setStatus("Select a key on the keypad first.", true);
+    if (!state.selected) return setStatus("Select a button on the keypad first.", true);
     ({ pageId, button } = state.selected);
   }
   let recipe;
@@ -796,7 +796,7 @@ async function applyRecipe(get, pageId, button) {
   } catch (error) {
     return setStatus(error.message, true);
   }
-  record(`applying ${recipe.name || "the recipe"} to key ${button}`);
+  record(`applying ${recipe.name || "the recipe"} to button ${button}`);
   state.pageId = pageId;
   state.selected = { pageId, button };
   editor.setRecipe(recipe);
@@ -804,7 +804,7 @@ async function applyRecipe(get, pageId, button) {
   await setEdit(pageId, button, recipe);
   renderTabs();
   renderSelection();
-  setStatus(`Applied ${recipe.name || "the recipe"} to key ${button}.`);
+  setStatus(`Applied ${recipe.name || "the recipe"} to button ${button}.`);
 }
 
 function renderLibrary() {
@@ -1008,7 +1008,7 @@ async function newProject() {
   if (!project) return;
   remember("designer.model", chosen);
   showProject(project);
-  setStatus(`Created ${project.name} for ${chosen}. Click a key to design it.`);
+  setStatus(`Created ${project.name} for ${chosen}. Click a button to design it.`);
 }
 
 async function openProject() {
@@ -1056,7 +1056,7 @@ function invalidName() {
 async function saveProject(name = state.project.name) {
   const bad = invalidName();
   if (bad) {
-    setStatus(`Fix the button name on ${pageName(state.layout, bad.pageId)} key ${bad.button} first. ` +
+    setStatus(`Fix the button name on ${pageName(state.layout, bad.pageId)} button ${bad.button} first. ` +
               "Use letters, digits, spaces, dashes or underscores.", true);
     return false;
   }
@@ -1587,7 +1587,7 @@ function wire() {
   $("save-recipe").addEventListener("click", saveRecipe);
   $("clear-layers").addEventListener("click", clearLayers);
   $("lib-query").addEventListener("input", () => { state.libQuery = $("lib-query").value; renderLibrary(); });
-  // Clicking empty stage deselects the key.
+  // Clicking empty stage deselects the button.
   $("stage").addEventListener("click", (event) => {
     // A click can re-render what was clicked, so check where it started, not where it is now.
     if (!event.target.isConnected || !state.selected ||
@@ -1644,7 +1644,7 @@ async function start() {
   try {
     showProject(newest ? await getJson(projectUrl(newest))
                        : await sendJson("POST", "/api/projects", { name: "Untitled", model: DEFAULT_MODEL, unique: true }));
-    setStatus(newest ? `Opened ${newest}.` : "Created Untitled. Click a key to design it.");
+    setStatus(newest ? `Opened ${newest}.` : "Created Untitled. Click a button to design it.");
   } catch (error) {
     setStatus(`Couldn't open ${newest || "a new project"}: ${error.message}. ` +
               "Choose another project in Open, or click New.", true);
