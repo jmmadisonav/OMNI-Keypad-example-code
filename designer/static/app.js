@@ -1582,8 +1582,14 @@ function wire() {
   document.addEventListener("click", (event) => {
     if (!event.target.closest(".device-area")) $("find-popover").hidden = true;
   });
+  // Close on a click on the backdrop, but not on a drag that only ends there,
+  // such as selecting text in a field and releasing outside the dialog: the
+  // browser sends that click to the backdrop too.
+  let pressedOnBackdrop = false;
+  $("modal").addEventListener("pointerdown", (event) => { pressedOnBackdrop = event.target === $("modal"); });
   $("modal").addEventListener("click", (event) => {
-    if (event.target === $("modal") && modalClosable) (modalCancel || closeModal)();
+    if (event.target === $("modal") && pressedOnBackdrop && modalClosable) (modalCancel || closeModal)();
+    pressedOnBackdrop = false;
   });
   document.addEventListener("keydown", onUndoKey);
   document.addEventListener("keydown", (event) => {
