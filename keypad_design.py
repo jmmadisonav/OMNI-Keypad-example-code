@@ -4,7 +4,8 @@ A design is the file /project/project.cpio on the keypad. It's an old-style
 ASCII cpio archive (magic "070707") that holds:
 
 - keypad.json: pages, buttons, dial, and LED ring settings.
-- images/<name>.png: 188x188 button images that keypad.json refers to by name.
+- images/<name>.png: button images that keypad.json refers to by name. They're
+  188x188 on the 8BV, and 150x150 on the 6B and 6BV.
 
 This module handles files only. Use hcontrol.HControlClient.get_file() and
 put_file() to move designs to and from the keypad.
@@ -23,7 +24,8 @@ import warnings
 from pathlib import Path
 
 DESIGN_PATH = "/project/project.cpio"
-IMAGE_SIZE = (188, 188)
+IMAGE_SIZE = (188, 188)                       # The 8BV's button images.
+IMAGE_SIZES = {IMAGE_SIZE, (150, 150)}        # Every model's: the 6B and 6BV use 150x150.
 
 # Firmware 1.1.4.0 can't load a design with more than 9 pages. It accepts
 # the upload, then runs with no design at all.
@@ -187,9 +189,9 @@ class Design:
             source = Path(source)
             data = source.read_bytes()
             size = png_size(data)
-            if size != IMAGE_SIZE:
-                warnings.warn(f"{source.name} is {size[0]}x{size[1]}; "
-                              f"keypad buttons are {IMAGE_SIZE[0]}x{IMAGE_SIZE[1]}")
+            if size not in IMAGE_SIZES:
+                warnings.warn(f"{source.name} is {size[0]}x{size[1]}; keypad buttons are "
+                              "188x188 on the 8BV and 150x150 on the 6B and 6BV")
             self.images[source.name] = data
             target[key] = [source.name]
 

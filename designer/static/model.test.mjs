@@ -174,3 +174,10 @@ test("tintSource prefers crisp grey artwork", async () => {
   assert.equal(tintSource(shapes, "B").off, "l");
   assert.equal(tintSource(shapes, "C"), null);
 });
+
+test("imageSizeFor uses the model's size, or guesses from the button count", async () => {
+  const { imageSizeFor } = await import("./model.js");
+  assert.equal(imageSizeFor({ image_size: 150 }, 8), 150);
+  assert.equal(imageSizeFor(undefined, 6), 150);
+  assert.equal(imageSizeFor(undefined, 8), SIZE);
+});

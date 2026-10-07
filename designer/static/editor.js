@@ -54,7 +54,7 @@ export function createEditor({ root, catalog, iconTags, onChange, onPreview, onC
           </div>
         </div>`).join("")}
     </div>
-    <p class="help pad-x">188 × 188 px. Drag on either canvas to move the selected layer.</p>
+    <p class="help pad-x"><span data-image-size>188 × 188</span> px on the keypad. Drag on either canvas to move the selected layer.</p>
     <div class="block">
       <div class="row-between"><span class="label">Add layer</span>
         <button type="button" class="link-red" data-quick></button></div>
@@ -547,6 +547,10 @@ export function createEditor({ root, catalog, iconTags, onChange, onPreview, onC
       if (!recipe) return;
       recipe = { ...recipe, name };
       onChange(recipe);
+    },
+    // The keypad's image size, for the help line. Layers stay in 188-unit coordinates.
+    setImageSize(size) {
+      root.querySelector("[data-image-size]").textContent = `${size} × ${size}`;
     },
     setShowOn(on) {
       showOn = on;

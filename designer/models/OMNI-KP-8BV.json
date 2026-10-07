@@ -6,6 +6,7 @@
   "dial": true,
   "faceplate": "square",
   "tested": true,
+  "image_size": 188,
   "template": {
     "fingerprint": "",
     "lastdeployedtimestamp": "",

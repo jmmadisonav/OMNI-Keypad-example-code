@@ -2,7 +2,11 @@
 
 The button designer is a local web page where you design button images for
 an OMNI keypad and deploy them to it. Each button gets an OFF and an ON image,
-188x188 pixels, built from layers:
+built from layers. The images are 188x188 pixels on the 8BV and 150x150 on the
+6B and 6BV; the designer renders them at the project's size, so you lay out
+layers the same way on every model.
+
+The layers are:
 
 - **Shape:** a base shape from `docs/Keypad Graphics.zip` (Squared, Bubble, or
   Circle 45) in any of its colours.

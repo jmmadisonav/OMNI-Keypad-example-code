@@ -3,7 +3,7 @@
 
 import { getJson, sendJson, assetUrl } from "./api.js";
 import {
-  gridFor, buttonKey, recipeFromImages, isBlank, fileStem, buttonNameError, nameFromImage,
+  gridFor, buttonKey, recipeFromImages, isBlank, fileStem, buttonNameError, nameFromImage, imageSizeFor,
 } from "./model.js";
 import { renderRecipe, toBase64, loadIcons } from "./render.js";
 import { createEditor, icon } from "./editor.js";
@@ -143,6 +143,9 @@ function faceImage(pageId, button, on = state.showOn) {
 
 const isChanged = (key) => state.edits.has(key) || state.linkChanged.has(key);
 
+// The pixel size of this project's button images: 150 on the 6B and 6BV, 188 on the 8BV.
+const imageSize = () => imageSizeFor(model(), state.project.config.pages[0].buttons.length);
+
 // Store new layers for a button and redraw it.
 async function setEdit(pageId, button, recipe) {
   const key = keyOf(pageId, button);
@@ -150,7 +153,7 @@ async function setEdit(pageId, button, recipe) {
   updateHeader();
   renderKeypad();
   renderSelectionHead();
-  const { off, on } = await renderRecipe(recipe, state.catalog);
+  const { off, on } = await renderRecipe(recipe, state.catalog, imageSize());
   if (state.edits.get(key) !== recipe) return;            // A newer edit arrived.
   state.previews.set(key, { off: off.toDataURL("image/png"), on: on.toDataURL("image/png") });
   renderKeypad();
@@ -924,6 +927,7 @@ function showProject(project) {
   state.previews.clear();
   state.linkChanged.clear();
   clearHistory();
+  editor.setImageSize(imageSize());
   editor.setRecipe(null);
   $("project-name").textContent = project.name;
   $("project-name").title = project.name;
@@ -1027,7 +1031,7 @@ async function saveRequest() {
     const [pageId, button] = key.split("-");
     const page = pageNumber(state.layout, pageId);
     if (!page) continue;                                // Its page was deleted.
-    const { off, on } = await renderRecipe(recipe, state.catalog);
+    const { off, on } = await renderRecipe(recipe, state.catalog, imageSize());
     buttons.push({ page, button: Number(button), name: recipe.name || "",
                    off: toBase64(off), on: toBase64(on) });
   }

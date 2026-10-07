@@ -117,6 +117,17 @@ class ServerTests(unittest.TestCase):
         self.assertIn("Mute_OFF.png", opened["images"])
         self.assertEqual([p["name"] for p in self.json_request("GET", "/api/projects")[1]], ["Lobby"])
 
+    def test_save_checks_images_against_the_project_model(self):
+        self.json_request("POST", "/api/projects", {"name": "Desk", "model": "OMNI-KP-6B"})
+        small = {"page": 1, "button": 1, "name": "", "off": b64(make_png(150, 150)),
+                 "on": b64(make_png(150, 150, seed=1))}
+        large = {**small, "off": b64(make_png()), "on": b64(make_png(seed=1))}
+        status, body = self.json_request("PUT", "/api/projects/Desk", {"buttons": [large], "recipes": {}})
+        self.assertEqual(status, 400, body)
+        self.assertIn("buttons need 150x150", body["error"])
+        status, body = self.json_request("PUT", "/api/projects/Desk", {"buttons": [small], "recipes": {}})
+        self.assertEqual(status, 200, body)
+
     def test_taken_project_name_is_409(self):
         self.json_request("POST", "/api/projects", {"name": "Lobby"})
         self.json_request("POST", "/api/projects", {"name": "Hall"})

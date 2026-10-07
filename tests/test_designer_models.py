@@ -36,6 +36,12 @@ class ShippedModelTests(unittest.TestCase):
                     self.assertEqual((button["offImage"], button["onImage"], button["destination"]),
                                      ([], [], ""))
 
+    def test_image_sizes(self):
+        # The 6B and 6BV show 150x150 button images; the 8BV shows 188x188.
+        self.assertEqual({m: self.models[m].image_size for m in self.models},
+                         {"OMNI-KP-6B": 150, "OMNI-KP-6BV": 150, "OMNI-KP-8BV": 188})
+        self.assertEqual(self.models["OMNI-KP-6B"].summary()["image_size"], 150)
+
     def test_summary_has_no_template(self):
         summary = self.models["OMNI-KP-6BV"].summary()
         self.assertNotIn("template", summary)
@@ -59,6 +65,8 @@ class BadModelTests(unittest.TestCase):
             "missing field": {k: v for k, v in self.data.items() if k != "rows"},
             "id": {**self.data, "id": "OMNI-KP-9X"},
             "faceplate": {**self.data, "faceplate": "round"},
+            "image size": {**self.data, "image_size": 0},
+            "image size type": {**self.data, "image_size": "150"},
         }
         for case, data in cases.items():
             with self.subTest(case=case):

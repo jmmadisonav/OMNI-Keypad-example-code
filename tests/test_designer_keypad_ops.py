@@ -36,6 +36,13 @@ class ButtonImagesTests(unittest.TestCase):
             ButtonImages.from_json({"page": 1, "button": 2, "name": "",
                                     "off": b64(make_png()), "on": b64(make_png(200, 188))})
 
+    def test_from_json_checks_the_size_it_is_given(self):
+        item = {"page": 1, "button": 1, "name": "", "off": b64(make_png(150, 150)),
+                "on": b64(make_png(150, 150))}
+        self.assertEqual(ButtonImages.from_json(item, sizes={(150, 150)}).page, 1)
+        with self.assertRaisesRegex(ValueError, r"the OFF image is 150x150; buttons need 188x188"):
+            ButtonImages.from_json(item)
+
     def test_from_json_rejects_non_png_and_bad_base64(self):
         for value in (b64(b"hello"), "***"):
             with self.subTest(value=value), self.assertRaises(ValueError):

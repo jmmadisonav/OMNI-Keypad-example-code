@@ -71,7 +71,8 @@ class ButtonImages:
     on: bytes
 
     @classmethod
-    def from_json(cls, item: dict) -> ButtonImages:
+    def from_json(cls, item: dict, sizes: set[tuple[int, int]] = frozenset({IMAGE_SIZE})) -> ButtonImages:
+        """Decode one button's images, which must be one of sizes (the model's)."""
         try:
             page, button = int(item["page"]), int(item["button"])
         except (KeyError, TypeError, ValueError):
@@ -85,10 +86,10 @@ class ButtonImages:
             except (binascii.Error, ValueError, TypeError):
                 raise ValueError(f"page {page} button {button}: the {state.upper()} image "
                                  "isn't a PNG") from None
-            if size != IMAGE_SIZE:
+            if size not in sizes:
+                need = " or ".join(f"{w}x{h}" for w, h in sorted(sizes))
                 raise ValueError(f"page {page} button {button}: the {state.upper()} image is "
-                                 f"{size[0]}x{size[1]}; buttons need "
-                                 f"{IMAGE_SIZE[0]}x{IMAGE_SIZE[1]}")
+                                 f"{size[0]}x{size[1]}; buttons need {need}")
             images[state] = data
         return cls(page, button, str(item.get("name") or ""), images["off"], images["on"])
 

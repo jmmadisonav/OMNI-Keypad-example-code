@@ -105,6 +105,13 @@ class DesignTests(unittest.TestCase):
             self.design.set_button_images(1, 1, on=self.tmp / "big.png")
         self.assertIn("256x256", str(caught[0].message))
 
+    def test_set_button_images_accepts_6b_size(self):
+        (self.tmp / "small.png").write_bytes(make_png(150, 150))
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            self.design.set_button_images(1, 1, on=self.tmp / "small.png")
+        self.assertEqual(caught, [])
+
     def test_set_button_images_rejects_non_png(self):
         (self.tmp / "photo.jpg").write_bytes(b"\xff\xd8\xff" + b"\0" * 40)
         with self.assertRaisesRegex(ValueError, "not a PNG"):

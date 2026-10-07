@@ -246,7 +246,7 @@ validate(desc, "/page1/ledring/level", 500)
 
 A design is the file `/project/project.cpio` on the keypad. It contains
 `keypad.json`, which describes the pages and controls, and an `images/` folder
-of 188x188 PNG button images. You can download it, change it, and upload it
+of PNG button images: 188x188 on the 8BV, and 150x150 on the 6B and 6BV. You can download it, change it, and upload it
 again.
 
 > **Note:** The design format and file transfer commands aren't publicly

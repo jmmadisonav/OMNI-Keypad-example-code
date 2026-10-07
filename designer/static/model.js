@@ -11,6 +11,12 @@ export function gridFor(model, buttonCount) {
   const columns = buttonCount <= 6 ? 2 : 4;
   return { columns, rows: Math.ceil(buttonCount / columns) };
 }
+// The pixel size of a keypad's button images. Without a known model, a
+// 6-button keypad (6B, 6BV) is 150 and an 8-button one (8BV) is SIZE.
+export function imageSizeFor(model, buttonCount) {
+  if (model) return model.image_size;
+  return buttonCount <= 6 ? 150 : SIZE;
+}
 export const FONTS = ["Titillium Web", "Inter", "Roboto", "Oswald"];
 
 const OFF_GREY = "#9AA0A6";

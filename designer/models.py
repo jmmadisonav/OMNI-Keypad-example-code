@@ -2,7 +2,8 @@
 
 Each model is a file in designer/models/: its name, button grid, whether it
 has a dial and LED ring, faceplate shape, whether it's been tested on real
-hardware, and a one-page keypad.json that new projects start from.
+hardware, the size of its button images, and a one-page keypad.json that new
+projects start from.
 """
 
 from __future__ import annotations
@@ -27,6 +28,7 @@ class Model:
     dial: bool
     faceplate: str
     tested: bool
+    image_size: int          # Button images are image_size x image_size pixels.
     template: dict
 
     @property
@@ -59,6 +61,8 @@ def _check(model: Model, path: Path) -> None:
     if not (isinstance(model.columns, int) and isinstance(model.rows, int)
             and model.columns > 0 and model.rows > 0):
         raise ValueError("columns and rows must be whole numbers")
+    if type(model.image_size) is not int or model.image_size <= 0:
+        raise ValueError("image_size must be a whole number of pixels")
     if model.faceplate not in _FACEPLATES:
         raise ValueError(f"faceplate must be one of {', '.join(_FACEPLATES)}")
     pages = model.template.get("pages")

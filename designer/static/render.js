@@ -131,18 +131,24 @@ export async function drawRecipe(ctx, recipe, state, catalog) {
   }
 }
 
-function blankCanvas() {
+function blankCanvas(size = SIZE) {
   const canvas = document.createElement("canvas");
-  canvas.width = SIZE;
-  canvas.height = SIZE;
+  canvas.width = size;
+  canvas.height = size;
   return canvas;
 }
 
-export async function renderRecipe(recipe, catalog) {
+// Layers are laid out on a 188-unit canvas whatever the model, so recipes
+// work on every keypad. size is the image the keypad shows: 188 on the 8BV,
+// 150 on the 6B and 6BV. Drawing scaled, rather than resizing a 188 image,
+// keeps a 150-pixel keypad image at its own resolution.
+export async function renderRecipe(recipe, catalog, size = SIZE) {
   const result = {};
   for (const state of ["off", "on"]) {
-    result[state] = blankCanvas();
-    await drawRecipe(result[state].getContext("2d"), recipe, state, catalog);
+    result[state] = blankCanvas(size);
+    const ctx = result[state].getContext("2d");
+    ctx.scale(size / SIZE, size / SIZE);
+    await drawRecipe(ctx, recipe, state, catalog);
   }
   return result;
 }

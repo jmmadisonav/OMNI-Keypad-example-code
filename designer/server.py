@@ -210,7 +210,8 @@ class _Handler(BaseHTTPRequestHandler):
                 return self._json(self.projects.open(name))
             if method == "PUT":
                 body = self._body()
-                buttons = [ButtonImages.from_json(item) for item in _field(body, "buttons", list)]
+                sizes = _image_sizes(self.projects, self.projects.model_of(name))
+                buttons = [ButtonImages.from_json(item, sizes) for item in _field(body, "buttons", list)]
                 layout = (Layout.from_json(_field(body, "layout", dict))
                           if body.get("layout") is not None else None)
                 return self._json(self.projects.save(name, buttons, layout,
@@ -341,6 +342,14 @@ def _backup_model(projects: ProjectStore, data: bytes) -> str | None:
     matches = [m.id for m in projects.models.values()
                if m.buttons == len(page.get("buttons", [])) and m.dial == dial]
     return matches[0] if len(matches) == 1 else None
+
+
+def _image_sizes(projects: ProjectStore, model: str) -> set[tuple[int, int]]:
+    """The button image sizes a project accepts: its model's, or any model's
+    if its model file is missing."""
+    known = projects.models.get(model)
+    models = [known] if known else projects.models.values()
+    return {(m.image_size, m.image_size) for m in models}
 
 
 def _supported(projects: ProjectStore) -> str:
