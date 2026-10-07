@@ -592,6 +592,7 @@ async function start() {
   $("host").value = recall("designer.host");
   refreshBackups();
   $("new").addEventListener("click", newProject);
+  $("new-cancel").addEventListener("click", () => $("new-dialog").close("cancel"));
   $("projects").addEventListener("change", openProject);
   $("save").addEventListener("click", () => saveProject());
   $("save-as").addEventListener("click", saveAs);
