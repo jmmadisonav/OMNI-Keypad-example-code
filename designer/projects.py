@@ -2,13 +2,13 @@
 
 A project is a folder in designer/projects/ with the same layout as the
 repo's design/ folder (keypad.json and images/), plus designer.json for the
-designer's own data: each button's layers, and the fingerprint of the keypad
-design the project last loaded from or deployed to.
+designer's own data: the keypad model, each button's layers, and the fingerprint of the keypad design the project last loaded from or deployed to.
 """
 
 from __future__ import annotations
 
 import base64
+import copy
 import datetime
 import json
 import re
@@ -17,11 +17,10 @@ import shutil
 import threading
 from pathlib import Path
 
-from designer.keypad_ops import ButtonImages, Layout, apply_buttons, apply_layout, blank_page
+from designer.keypad_ops import ButtonImages, Layout, apply_buttons, apply_layout
 from designer.library import validate_name
+from designer.models import DEFAULT_MODEL, Model, load_models
 from keypad_design import Design
-
-TEMPLATE = Path(__file__).resolve().parent.parent / "design" / "keypad.json"
 
 _META = "designer.json"
 _RECIPE_KEY = re.compile(r"([1-9]\d*)-([1-9]\d*)")
@@ -34,10 +33,10 @@ def project_name_for(host: str, today: datetime.date | None = None) -> str:
 
 
 class ProjectStore:
-    def __init__(self, folder: str | Path, template: str | Path = TEMPLATE):
+    def __init__(self, folder: str | Path, models: dict[str, Model] | None = None):
         self.folder = Path(folder)
         self.folder.mkdir(parents=True, exist_ok=True)
-        self.template = Path(template)
+        self.models = models if models is not None else load_models()
         self._lock = threading.RLock()            # One write at a time.
 
     def list(self) -> list[dict]:
@@ -62,20 +61,19 @@ class ProjectStore:
             number += 1
         return name
 
-    def new(self, name: str, unique: bool = False) -> dict:
-        """Create a project from the template. With unique, pick a free name."""
+    def new(self, name: str, model: str = DEFAULT_MODEL, unique: bool = False) -> dict:
+        """Create a project for a keypad model. With unique, pick a free name."""
+        if model not in self.models:
+            raise ValueError(f"{model!r} isn't a keypad model the designer supports")
         with self._lock:
-            return self._new(self.unique_name(name) if unique else name)
+            return self._new(self.unique_name(name) if unique else name, model)
 
-    def _new(self, name: str) -> dict:
+    def _new(self, name: str, model: str) -> dict:
         self._new_path(name)
-        config = json.loads(self.template.read_text(encoding="utf-8"))
-        page = blank_page(config["pages"][0])
-        page["name"] = "Page 1"
-        config["pages"] = [page]
+        config = copy.deepcopy(self.models[model].template)
         config["fingerprint"] = ""
         config["lastdeployedtimestamp"] = ""
-        self._write(name, Design(config), _empty_meta(""))
+        self._write(name, Design(config), _empty_meta("", model))
         return self.open(name)
 
     def open(self, name: str) -> dict:
@@ -89,6 +87,7 @@ class ProjectStore:
                        for image, body in design.images.items() if image in used},
             "recipes": meta["recipes"],
             "baseFingerprint": meta["baseFingerprint"],
+            "model": meta["model"],
         }
 
     def design(self, name: str) -> Design:
@@ -100,6 +99,10 @@ class ProjectStore:
     def base_fingerprint(self, name: str) -> str:
         self.design(name)                         # FileNotFoundError if missing.
         return self._meta(name)["baseFingerprint"]
+
+    def model_of(self, name: str) -> str:
+        self.design(name)                         # FileNotFoundError if missing.
+        return self._meta(name)["model"]
 
     def save(self, name: str, buttons: list[ButtonImages], layout: Layout | None,
              recipes: dict) -> dict:
@@ -129,12 +132,13 @@ class ProjectStore:
             self._write(to, design, meta)
             return self.open(to)
 
-    def import_design(self, name: str, data: bytes, base_fingerprint: str) -> dict:
+    def import_design(self, name: str, data: bytes, base_fingerprint: str,
+                      model: str = DEFAULT_MODEL) -> dict:
         with self._lock:
             self._new_path(name)
             design = Design.from_cpio(data)
             design.prune_images()
-            self._write(name, design, _empty_meta(base_fingerprint))
+            self._write(name, design, _empty_meta(base_fingerprint, model))
             return self.open(name)
 
     def set_base(self, name: str, fingerprint: str) -> None:
@@ -192,8 +196,8 @@ class ProjectStore:
                 shutil.rmtree(old, ignore_errors=True)
 
 
-def _empty_meta(base_fingerprint: str) -> dict:
-    return {"version": 1, "baseFingerprint": base_fingerprint, "recipes": {}}
+def _empty_meta(base_fingerprint: str, model: str = DEFAULT_MODEL) -> dict:
+    return {"version": 1, "model": model, "baseFingerprint": base_fingerprint, "recipes": {}}
 
 
 def _clean_recipes(recipes: dict, design: Design) -> dict:

@@ -198,6 +198,43 @@ class ProjectStoreTests(unittest.TestCase):
         self.assertEqual(design.missing_images(), [])
         self.assertNotIn("designer.json", json.dumps(sorted(design.images)))
 
+    def test_new_project_per_model(self):
+        for model, buttons, dial in (("OMNI-KP-6B", 6, False), ("OMNI-KP-6BV", 6, True),
+                                     ("OMNI-KP-8BV", 8, True)):
+            with self.subTest(model=model):
+                project = self.store.new(model, model)
+                page = project["config"]["pages"][0]
+                self.assertEqual(project["model"], model)
+                self.assertEqual(len(page["buttons"]), buttons)
+                self.assertEqual("dial" in page and "ledring" in page and "dial_button" in page, dial)
+                self.assertEqual(self.store.model_of(model), model)
+
+    def test_new_unknown_model_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "OMNI-KP-9X"):
+            self.store.new("Lobby", "OMNI-KP-9X")
+        self.assertEqual(self.store.list(), [])
+
+    def test_import_records_the_model(self):
+        project = self.store.import_design("Keypad", self.data, "abc", "OMNI-KP-8BV")
+        self.assertEqual(project["model"], "OMNI-KP-8BV")
+
+    def test_project_without_model_opens_as_8bv(self):
+        self.store.new("Old")
+        meta_path = self.folder / "Old" / "designer.json"
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        del meta["model"]
+        meta_path.write_text(json.dumps(meta), encoding="utf-8")
+        self.assertEqual(self.store.open("Old")["model"], "OMNI-KP-8BV")
+        self.assertEqual(self.store.model_of("Old"), "OMNI-KP-8BV")
+
+    def test_new_page_on_6b_copies_its_structure(self):
+        self.store.new("Six", "OMNI-KP-6B")
+        project = self.store.save("Six", [], layout([("Page 1", 1), ("Page 2", None)]), {})
+        page = project["config"]["pages"][1]
+        self.assertEqual(len(page["buttons"]), 6)
+        self.assertFalse(any(key in page for key in ("dial", "ledring", "dial_button")))
+        self.assertEqual(project["model"], "OMNI-KP-6B")
+
 
 if __name__ == "__main__":
     unittest.main()
