@@ -285,9 +285,10 @@ data = design.to_cpio()               # new fingerprint and timestamp
 
 ## Button designer
 
-To design button images in your browser and deploy them to the keypad, run
-`python designer/server.py`. For details, see
-[`designer/README.md`](designer/README.md).
+The button designer, where you design button images and deploy them to the
+keypad, is now a separate project: **OMNI Keypad Designer**, a Windows desktop
+app that you can also run in your browser. It's built on this repo's
+`hcontrol.py`, `keypad_design.py`, and `03_upload_design.py`.
 
 ## Protocol reference
 
